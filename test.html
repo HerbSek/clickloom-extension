@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>ClickLoom Test Page</title>
+  <script src="axios.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      color: #333;
+    }
+    .test-section {
+      margin-bottom: 30px;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    .test-links {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    a {
+      color: #0066cc;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    .description {
+      color: #666;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>ClickLoom Extension Test Page</h1>
+  <p>This page contains various links to test the ClickLoom extension's link interception functionality.</p>
+
+  <div class="test-section">
+    <h2>Regular Links</h2>
+    <p class="description">These are standard links that should be intercepted by the extension.</p>
+    <div class="test-links">
+      <a href="https://www.google.com">Google</a>
+      <a href="https://www.github.com">GitHub</a>
+      <a href="https://www.example.com">Example.com</a>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>Special Protocol Links</h2>
+    <p class="description">These links use special protocols that should be ignored by the extension.</p>
+    <div class="test-links">
+      <a href="mailto:test@example.com">Email Link</a>
+      <a href="tel:+1234567890">Phone Link</a>
+      <a href="javascript:alert('Hello!')">JavaScript Link</a>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>Modified Click Links</h2>
+    <p class="description">Try clicking these with modifier keys (Ctrl, Shift, etc.) to test that the extension ignores modified clicks.</p>
+    <div class="test-links">
+      <a href="https://www.mozilla.org">Mozilla (try Ctrl+Click)</a>
+      <a href="https://www.wikipedia.org">Wikipedia (try Shift+Click)</a>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>Dynamic Links</h2>
+    <p class="description">This link will be added dynamically after page load.</p>
+    <div class="test-links" id="dynamic-links">
+      <!-- Links will be added here -->
+    </div>
+  </div>
+
+  <script>
+    // Log Axios version
+    console.log("Using Axios version:", axios.VERSION);
+    
+    // Add a dynamic link after a short delay
+    setTimeout(() => {
+      const dynamicLinks = document.getElementById('dynamic-links');
+      const newLink = document.createElement('a');
+      newLink.href = 'https://www.reddit.com';
+      newLink.textContent = 'Reddit (Added Dynamically)';
+      dynamicLinks.appendChild(newLink);
+    }, 1000);
+  </script>
+</body>
+</html> 

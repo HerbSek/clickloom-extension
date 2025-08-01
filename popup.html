@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="styles.css">
+  <script src="axios.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <!-- Initial Screen -->
+    <div class="initial-screen active">
+      <h2>Link Interception</h2>
+      <p>ClickLoom has intercepted a link click to:</p>
+      <div class="url" id="urlToScan"></div>
+      <p>Would you like to scan this link for safety?</p>
+      <div class="button-group">
+        <button class="btn-proceed" id="startScan">Yes, scan it</button>
+        <button class="btn-cancel" id="cancelScan">No, proceed directly</button>
+      </div>
+    </div>
+
+    <!-- Loading Screen -->
+    <div class="loading" style="display: none;">
+      <div class="spinner"></div>
+      <div>Scanning website for security threats...</div>
+      <div class="small-text">This may take a few seconds</div>
+    </div>
+
+    <!-- Results Screen -->
+    <div class="results-screen">
+      <div class="verdict">
+        <span class="verdict-icon">✓</span>
+        <span class="verdict-text">Safe</span>
+      </div>
+
+      <div class="url" id="scannedUrl"></div>
+
+      <div class="risk-score">
+        <div>Risk Score</div>
+        <div class="score-bar">
+          <div class="score-fill" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Analysis</div>
+        <div class="info-grid">
+          <div class="info-item">
+            <strong>Total Scripts:</strong>
+            <span id="totalScripts">0</span>
+          </div>
+          <div class="info-item">
+            <strong>External Scripts:</strong>
+            <span id="externalScripts">0</span>
+          </div>
+          <div class="info-item">
+            <strong>Total Links:</strong>
+            <span id="totalLinks">0</span>
+          </div>
+          <div class="info-item">
+            <strong>External Links:</strong>
+            <span id="externalLinks">0</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Recommendations</div>
+        <div class="recommendations" id="recommendations"></div>
+      </div>
+
+      <div class="button-group">
+        <button class="btn-proceed" id="proceedToSite">Proceed to Site</button>
+        <button class="btn-cancel" id="goBack">Cancel Navigation</button>
+      </div>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html> 
