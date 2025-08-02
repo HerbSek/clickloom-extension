@@ -35,6 +35,7 @@
       "all_frames": true
     }
   ],
+
   "declarative_net_request": {
     "rule_resources": [
       {
@@ -51,7 +52,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["test.html", "axios.min.js"],
+      "resources": ["test.html", "test-webRequest.html", "test-navigation-flow.html", "axios.min.js"],
       "matches": ["<all_urls>"]
     }
   ]

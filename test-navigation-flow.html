@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Navigation Flow Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    h1 {
+      color: #333;
+      text-align: center;
+    }
+    .test-section {
+      margin-bottom: 30px;
+      padding: 20px;
+      border: 2px solid #ddd;
+      border-radius: 10px;
+      background-color: white;
+    }
+    .test-link {
+      display: block;
+      color: #0066cc;
+      text-decoration: none;
+      padding: 15px;
+      border: 2px solid #0066cc;
+      border-radius: 5px;
+      margin: 10px 0;
+      text-align: center;
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .test-link:hover {
+      background-color: #0066cc;
+      color: white;
+    }
+    .description {
+      color: #666;
+      margin-bottom: 15px;
+      font-style: italic;
+    }
+    .instructions {
+      background-color: #e8f4fd;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔒 Navigation Flow Test</h1>
+  
+  <div class="instructions">
+    <h3>🎯 Simple Test Flow:</h3>
+    <ol>
+      <li><strong>Click any link below</strong> → Browser blocks request immediately</li>
+      <li><strong>Popup appears</strong> → Choose "Check Link Safety" or "Proceed Directly"</li>
+      <li><strong>If "Check Link Safety"</strong> → API scans → Shows results → Click "Proceed to Website"</li>
+      <li><strong>If "Proceed Directly"</strong> → Goes straight to website</li>
+      <li><strong>Result:</strong> You should end up on the target website</li>
+    </ol>
+    <p><strong>✅ Expected:</strong> ALL links blocked first, then proceed after user choice.</p>
+  </div>
+
+  <div class="test-section">
+    <h2>🌐 Popular Websites</h2>
+    <p class="description">These should all be blocked and show the ClickLoom popup first.</p>
+    
+    <a href="https://www.google.com" class="test-link">
+      🔍 Google.com
+    </a>
+    
+    <a href="https://www.github.com" class="test-link">
+      💻 GitHub.com
+    </a>
+    
+    <a href="https://www.stackoverflow.com" class="test-link">
+      ❓ StackOverflow.com
+    </a>
+    
+    <a href="https://www.youtube.com" class="test-link">
+      📺 YouTube.com
+    </a>
+  </div>
+
+  <div class="test-section">
+    <h2>🧪 Edge Cases</h2>
+    <p class="description">Test different types of navigation.</p>
+    
+    <a href="https://www.reddit.com" class="test-link">
+      📱 Reddit.com (Regular Link)
+    </a>
+    
+    <a href="https://www.twitter.com" class="test-link" target="_blank">
+      🐦 Twitter.com (New Tab - should still be blocked)
+    </a>
+  </div>
+
+  <div class="test-section">
+    <h2>🚫 Should NOT be blocked</h2>
+    <p class="description">These should work normally without popup.</p>
+    
+    <a href="mailto:test@example.com" class="test-link">
+      📧 Email Link
+    </a>
+    
+    <a href="tel:+1234567890" class="test-link">
+      📞 Phone Link
+    </a>
+  </div>
+
+  <script>
+    // Log when page loads
+    console.log('Navigation flow test page loaded');
+    
+    // Add click logging
+    document.addEventListener('click', (event) => {
+      if (event.target.tagName === 'A') {
+        console.log('Link clicked:', event.target.href);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -69,82 +69,24 @@ function removeOverlay() {
   }
 }
 
-// Function to handle link clicks
-function handleLinkClick(event) {
-  try {
-    // Find the closest anchor tag to the clicked element
-    const link = event.target.closest('a');
-    
-    // If no link was found or it has no href, let the click through
-    if (!link || !link.href) {
-      return;
-    }
-
-    // Only handle left clicks without modifier keys
-    if (event.button !== 0 || event.ctrlKey || event.shiftKey || event.metaKey || event.altKey) {
-      return;
-    }
-
-    // Skip certain protocols that don't need scanning
-    const url = new URL(link.href);
-    if (url.protocol === 'mailto:' || url.protocol === 'tel:' || url.protocol === 'javascript:') {
-      return;
-    }
-
-    // Prevent the default navigation
-    event.preventDefault();
-    event.stopPropagation();
-    
-    // Create overlay to block all interactions
-    createOverlay();
-
-    // Store the URL in chrome.storage.local
-    chrome.storage.local.set({ 'clickedUrl': link.href }, () => {
-      // Send message to service worker to open popup
-      chrome.runtime.sendMessage({
-        type: 'openPopup',
-        url: link.href
-      }, response => {
-        if (chrome.runtime.lastError) {
-          removeOverlay(); // Remove overlay if there was an error
-        }
-      });
-    });
-  } catch (error) {
-    console.error('Error handling link click:', error);
-  }
-}
-
-// Add click event listener to all links on the page
-function addLinkListeners() {
-  try {
-    // Remove any existing listeners
-    document.removeEventListener('click', handleLinkClick, true);
-    
-    // Add the click listener to the document
-    document.addEventListener('click', handleLinkClick, true);
-  } catch (error) {
-    console.error('Error adding link listeners:', error);
-  }
-}
-
-// Initialize when the content script loads
-addLinkListeners();
+// Content script now focuses on UI management only
+// All navigation is blocked by declarativeNetRequest
+let isNavigationBlocked = false;
 
 // Listen for messages from the service worker
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   try {
-    if (message.type === 'proceedToUrl') {
+    if (message.type === 'cancelNavigation') {
       removeOverlay();
-      window.location.href = message.url;
-    } else if (message.type === 'cancelNavigation') {
-      removeOverlay();
+      isNavigationBlocked = false;
     } else if (message.type === 'showOverlay') {
       createOverlay();
+      isNavigationBlocked = true;
     } else if (message.type === 'hideOverlay') {
       removeOverlay();
+      isNavigationBlocked = false;
     }
   } catch (error) {
     console.error('Error handling message:', error);
   }
-}); 
+});

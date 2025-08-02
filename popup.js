@@ -62,14 +62,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Display scan results
   function displayResults(data) {
+    console.log('Displaying results:', data); // Debug log
+
     // Check if there's an error
     if (data.error) {
       showError(data.message);
       return;
     }
-    
+
     // Ensure we have a risk score
     const riskScore = data.risk_score || 3.0;
+    console.log('Risk score:', riskScore); // Debug log
     updateVerdict(riskScore);
     
     // Basic analysis with fallbacks
@@ -227,27 +230,40 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Navigate to URL
-  async function navigateToUrl(url) {
+  // Navigate to URL (proceed directly or after scan)
+  async function proceedToUrl(url) {
     try {
-      await chrome.runtime.sendMessage({
-        type: 'allowUrl',
+      console.log('Popup: Proceeding to URL:', url);
+
+      const response = await chrome.runtime.sendMessage({
+        type: 'proceedToUrl',
         url: url
       });
-      
-      window.close();
+
+      console.log('Popup: Proceed response:', response);
+
+      if (response.success) {
+        console.log('Navigation successful, closing popup');
+        window.close();
+      } else {
+        console.error('Navigation failed:', response.error);
+        // Show error to user
+        alert('Navigation failed. Please try again.');
+      }
     } catch (error) {
-      console.error('Error navigating to URL:', error);
+      console.error('Error proceeding to URL:', error);
     }
   }
 
   // Cancel navigation
   async function cancelNavigation() {
     try {
+      console.log('Popup: Cancelling navigation');
+
       await chrome.runtime.sendMessage({
-        type: 'cancelUrl'
+        type: 'cancelNavigation'
       });
-      
+
       window.close();
     } catch (error) {
       console.error('Error cancelling navigation:', error);
@@ -258,10 +274,14 @@ document.addEventListener('DOMContentLoaded', () => {
   async function initPopup() {
     try {
       const { clickedUrl } = await chrome.storage.local.get('clickedUrl');
+      console.log('Popup initialized with URL:', clickedUrl);
       if (clickedUrl) {
         currentUrl = clickedUrl;
         urlToScan.textContent = clickedUrl;
         scannedUrl.textContent = clickedUrl;
+        console.log('Current URL set to:', currentUrl);
+      } else {
+        console.error('No clickedUrl found in storage!');
       }
     } catch (error) {
       console.error('Error initializing popup:', error);
@@ -286,11 +306,21 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   cancelScanButton.addEventListener('click', async () => {
-    navigateToUrl(currentUrl);
+    console.log('Cancel scan button clicked, proceeding directly to:', currentUrl);
+    if (!currentUrl) {
+      console.error('No current URL set!');
+      return;
+    }
+    proceedToUrl(currentUrl);
   });
 
   proceedButton.addEventListener('click', async () => {
-    navigateToUrl(currentUrl);
+    console.log('Proceed button clicked after scan, going to:', currentUrl);
+    if (!currentUrl) {
+      console.error('No current URL set!');
+      return;
+    }
+    proceedToUrl(currentUrl);
   });
 
   goBackButton.addEventListener('click', () => {
