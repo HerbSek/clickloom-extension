@@ -68,14 +68,113 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     
-    updateVerdict(data.risk_score);
+    // Ensure we have a risk score
+    const riskScore = data.risk_score || 3.0;
+    updateVerdict(riskScore);
     
-    totalScripts.textContent = data.script_analysis.total_scripts;
-    externalScripts.textContent = data.script_analysis.external_scripts;
-    totalLinks.textContent = data.link_analysis.total_links;
-    externalLinks.textContent = data.link_analysis.external_links;
+    // Basic analysis with fallbacks
+    totalScripts.textContent = data.script_analysis?.total_scripts || 0;
+    externalScripts.textContent = data.script_analysis?.external_scripts || 0;
+    totalLinks.textContent = data.link_analysis?.total_links || 0;
+    externalLinks.textContent = data.link_analysis?.external_links || 0;
     
-    recommendations.textContent = data.recommendations;
+    // Summary
+    const summaryElement = document.getElementById('summary');
+    if (summaryElement && data.summary) {
+      summaryElement.textContent = data.summary;
+    } else if (summaryElement) {
+      summaryElement.textContent = 'No detailed summary available.';
+    }
+    
+    // Text findings
+    const textFindingsElement = document.getElementById('textFindings');
+    if (textFindingsElement && data.page_text_findings) {
+      const findings = data.page_text_findings;
+      let findingsText = '';
+      
+      if (findings.phishing_indicators) {
+        findingsText += '⚠️ Phishing indicators detected\n';
+      }
+      
+      if (findings.suspicious_phrases && findings.suspicious_phrases.length > 0) {
+        findingsText += `🚨 Suspicious phrases found: ${findings.suspicious_phrases.length}\n`;
+        findings.suspicious_phrases.forEach(phrase => {
+          findingsText += `• "${phrase}"\n`;
+        });
+      }
+      
+      if (!findingsText) {
+        findingsText = '✅ No suspicious text content detected';
+      }
+      
+      textFindingsElement.textContent = findingsText;
+    } else if (textFindingsElement) {
+      textFindingsElement.textContent = 'Text analysis not available.';
+    }
+    
+    // Script details
+    const scriptDetailsElement = document.getElementById('scriptDetails');
+    if (scriptDetailsElement && data.script_analysis) {
+      const scriptAnalysis = data.script_analysis;
+      let scriptText = '';
+      
+      scriptText += `📊 Total scripts: ${scriptAnalysis.total_scripts || 0}\n`;
+      scriptText += `🌐 External scripts: ${scriptAnalysis.external_scripts || 0}\n`;
+      
+      if (scriptAnalysis.minified_or_encoded) {
+        scriptText += '🔒 Scripts are minified or encoded\n';
+      }
+      
+      if (scriptAnalysis.suspicious_domains && scriptAnalysis.suspicious_domains.length > 0) {
+        scriptText += `⚠️ Suspicious domains: ${scriptAnalysis.suspicious_domains.length}\n`;
+        scriptAnalysis.suspicious_domains.forEach(domain => {
+          scriptText += `• ${domain}\n`;
+        });
+      }
+      
+      scriptDetailsElement.textContent = scriptText;
+    } else if (scriptDetailsElement) {
+      scriptDetailsElement.textContent = 'Script analysis not available.';
+    }
+    
+    // Link details
+    const linkDetailsElement = document.getElementById('linkDetails');
+    if (linkDetailsElement && data.link_analysis) {
+      const linkAnalysis = data.link_analysis;
+      let linkText = '';
+      
+      linkText += `🔗 Total links: ${linkAnalysis.total_links || 0}\n`;
+      linkText += `🌐 External links: ${linkAnalysis.external_links || 0}\n`;
+      
+      if (linkAnalysis.redirect_services_used && linkAnalysis.redirect_services_used.length > 0) {
+        linkText += `🔄 Redirect services used: ${linkAnalysis.redirect_services_used.length}\n`;
+        linkAnalysis.redirect_services_used.forEach(service => {
+          linkText += `• ${service}\n`;
+        });
+      }
+      
+      if (linkAnalysis.phishing_like_links && linkAnalysis.phishing_like_links.length > 0) {
+        linkText += `🚨 Phishing-like links: ${linkAnalysis.phishing_like_links.length}\n`;
+        linkAnalysis.phishing_like_links.forEach(link => {
+          linkText += `• ${link}\n`;
+        });
+      }
+      
+      if (!linkText.includes('🚨') && !linkText.includes('🔄')) {
+        linkText += '✅ No suspicious link patterns detected';
+      }
+      
+      linkDetailsElement.textContent = linkText;
+    } else if (linkDetailsElement) {
+      linkDetailsElement.textContent = 'Link analysis not available.';
+    }
+    
+    // Recommendations
+    if (data.recommendations) {
+      recommendations.textContent = data.recommendations;
+    } else {
+      recommendations.textContent = 'No specific recommendations available.';
+    }
     
     showScreen('results');
   }
