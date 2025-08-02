@@ -1,98 +1,170 @@
-# ClickLoom - Safe Link Scanner Extension
+# ClickLoom - Safe Link Scanner
 
-A browser extension that enhances web safety by scanning links before visiting them. The extension intercepts link clicks and provides detailed safety analysis before proceeding to the destination.
+A Chrome/Edge browser extension that enhances web safety by scanning links before visiting them. ClickLoom intercepts link clicks, provides security analysis, and gives users control over their browsing safety.
 
 ## Features
 
-- 🔍 Intercepts all link clicks on any webpage
-- 🚦 Provides safety verdict (Safe, Suspicious, Unsafe)
-- 📊 Shows detailed analysis of scripts and links
-- 💡 Offers recommendations for safe browsing
-- 🎯 Risk score visualization
-- 📝 Caches scan results for better performance
+- **Link Interception**: Automatically intercepts all link clicks on web pages
+- **Security Scanning**: Scans links for potential security threats using AI-powered analysis
+- **User Control**: Gives users the choice to scan, proceed directly, or cancel navigation
+- **Real-time Analysis**: Provides detailed security reports including risk scores, script analysis, and recommendations
+- **Full-page Overlay**: Blocks user interaction during scanning to ensure focused decision-making
 
 ## Installation
 
-### Chrome/Edge
+1. **Download the Extension**:
+   - Clone or download this repository to your local machine
 
-1. Clone this repository or download the source code
-2. Open Chrome/Edge and navigate to `chrome://extensions` or `edge://extensions`
-3. Enable "Developer mode" in the top right
-4. Click "Load unpacked" and select the extension directory
+2. **Load in Chrome/Edge**:
+   - Open your browser and navigate to `chrome://extensions/` (Chrome) or `edge://extensions/` (Edge)
+   - Enable "Developer mode" in the top right corner
+   - Click "Load unpacked" and select the extension folder
+
+3. **Verify Installation**:
+   - The ClickLoom icon should appear in your browser toolbar
+   - Right-click the icon and select "Open ClickLoom Test Page" to test the extension
 
 ## Usage
 
-1. Click any link on a webpage
-2. The extension will intercept the click and show a popup
-3. Choose to scan the link or proceed directly
-   - "Yes, scan it" - performs a safety scan
-   - "Skip scan & proceed" - bypasses scanning and goes directly to the site
-4. If scanning:
-   - View the safety verdict
-   - Check the risk score and analysis
-   - Read recommendations
-   - Choose to proceed or go back
+### Basic Workflow
 
-## Testing
+1. **Browse Normally**: Visit any website as you normally would
+2. **Click a Link**: When you click on any link, ClickLoom will intercept it
+3. **Make Your Choice**: A popup will appear with options:
+   - **"Yes, scan it"**: Scan the link for security threats
+   - **"No, proceed directly"**: Skip scanning and go directly to the link
+4. **View Results**: If you choose to scan, you'll see:
+   - Security verdict (Safe/Suspicious/Unsafe)
+   - Risk score (1-10 scale)
+   - Script analysis (total scripts, external scripts)
+   - Link analysis (total links, external links)
+   - Security recommendations
+5. **Take Action**: After scanning, choose:
+   - **"Proceed to Site"**: Continue to the original link
+   - **"Cancel Navigation"**: Stay on the current page
 
-The extension includes a test page and helper tools to verify functionality:
+### Understanding Scan Results
 
-1. After loading the extension, right-click on the extension icon and select "Open ClickLoom Test Page"
-2. The test page contains various types of links to test different behaviors:
-   - Regular links (should be intercepted)
-   - Special protocol links (should not be intercepted)
-   - Links with modifier keys (should not be intercepted)
-   - Dynamically added links (should be intercepted)
-
-## Debugging
-
-To debug the extension:
-
-1. Go to `chrome://extensions/`
-2. Find "ClickLoom - Safe Link Scanner" and click on "service worker"
-3. This opens DevTools connected to the service worker
-4. Look for `[ClickLoom Debug]` messages in the console
-5. You can also check content script logs with `[ClickLoom Content]` and popup logs with `[ClickLoom Popup]`
+- **Risk Score**: 1-3 (Safe), 4-7 (Suspicious), 8-10 (Unsafe)
+- **Script Analysis**: Shows how many scripts the site loads and their sources
+- **Link Analysis**: Displays internal vs external link distribution
+- **Recommendations**: Specific advice based on the security analysis
 
 ## Technical Details
 
-The extension uses:
-- Manifest V3
-- Chrome Storage API for URL handling
-- Content Scripts for link interception
-- Service Worker for background tasks
-- DeclarativeNetRequest API for blocking navigation
-- Axios for HTTP requests (included locally)
-- Modern UI with responsive design
+### Architecture
 
-## API Integration
+- **Manifest V3**: Modern Chrome extension architecture
+- **Content Scripts**: Injected into web pages for link interception
+- **Service Worker**: Background processing and API communication
+- **DeclarativeNetRequest API**: Browser-level navigation control
+- **Axios**: HTTP client for API requests (included locally)
 
-The extension integrates with the scanning API at:
+### Key Components
+
+- `manifest.json`: Extension configuration and permissions
+- `content.js`: Link interception and overlay management
+- `service-worker.js`: Background processing and API calls
+- `popup.html/js`: User interface for scan decisions
+- `styles.css`: Visual styling for popup and overlay
+- `rules.json`: Network request blocking rules
+
+### Permissions
+
+- `storage`: Store clicked URLs and scan results
+- `activeTab`: Access current tab information
+- `scripting`: Inject content scripts
+- `tabs`: Manage browser tabs
+- `webNavigation`: Monitor navigation events
+- `declarativeNetRequest`: Block/allow network requests
+- `contextMenus`: Add right-click menu options
+
+## File Structure
+
 ```
-https://llm-2g3j.onrender.com/results?url=
+clickloom-extension/
+├── manifest.json          # Extension configuration
+├── content.js            # Link interception logic
+├── service-worker.js     # Background processing
+├── popup.html           # User interface
+├── popup.js             # Popup functionality
+├── styles.css           # Visual styling
+├── rules.json           # Network blocking rules
+├── test.html            # Testing page
+├── axios.min.js         # HTTP client library
+├── icons/               # Extension icons
+│   ├── icon16.png
+│   ├── icon48.png
+│   └── icon128.png
+└── README.md            # This file
 ```
 
-If the API is unavailable, the extension falls back to mock data for testing purposes.
+## Testing
 
-## Files
+1. **Load the Extension**: Follow the installation steps above
+2. **Open Test Page**: Right-click the extension icon and select "Open ClickLoom Test Page"
+3. **Test Different Links**: Try clicking various types of links on the test page
+4. **Check Functionality**: Verify that:
+   - Links are intercepted
+   - Overlay appears
+   - Popup opens with options
+   - Scanning works (may show mock data if API is unavailable)
+   - Navigation works correctly
 
-- `manifest.json` - Extension configuration
-- `content.js` - Link interception and handling
-- `service-worker.js` - Background tasks and API calls
-- `popup.html` & `popup.js` - User interface and interaction
-- `styles.css` - UI styling
-- `rules.json` - DeclarativeNetRequest rules
-- `test.html` - Test page with various link types
-- `icons/` - Extension icons
+## Troubleshooting
 
-## Known Issues and Solutions
+### Common Issues
 
-If links aren't being intercepted:
-- Make sure the extension is enabled
-- Reload the page
-- Check if content script is running (look for `[ClickLoom Content]` messages in the console)
+1. **Extension Not Loading**:
+   - Check that all files are present in the extension folder
+   - Ensure "Developer mode" is enabled in browser extensions
+   - Reload the extension if needed
 
-If the "Skip scan & proceed" button doesn't work:
-- Check the console for errors
-- Ensure the URL is being properly stored in `chrome.storage.local`
-- Verify the service worker is running 
+2. **Links Not Being Intercepted**:
+   - Verify the extension is enabled
+   - Check browser console for errors
+   - Try refreshing the page
+
+3. **API Not Working**:
+   - The extension will show mock data if the API is unavailable
+   - This is normal behavior for testing purposes
+
+### Error Messages
+
+- **"No active tab found"**: Usually resolves by refreshing the page
+- **"API error"**: Extension will use mock data instead
+- **"Error creating overlay"**: May occur on certain page types
+
+## Development
+
+### Making Changes
+
+1. **Edit Files**: Modify the relevant JavaScript/CSS files
+2. **Reload Extension**: Click the reload button in `chrome://extensions/`
+3. **Test Changes**: Use the test page to verify functionality
+
+### Key Functions
+
+- `handleLinkClick()`: Intercepts link clicks
+- `scanUrl()`: Makes API calls for security scanning
+- `createOverlay()`: Shows blocking overlay
+- `navigateToUrl()`: Handles user navigation choices
+
+## Security
+
+- **Local Processing**: All sensitive operations happen locally
+- **API Communication**: Only sends URLs to the scanning service
+- **No Data Collection**: Does not store or transmit personal information
+- **Transparent**: Open source code for full transparency
+
+## License
+
+This project is open source and available under the MIT License.
+
+## Support
+
+For issues or questions:
+1. Check the troubleshooting section above
+2. Review browser console for error messages
+3. Test with the provided test page
+4. Ensure all files are properly loaded 

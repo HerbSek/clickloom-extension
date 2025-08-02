@@ -1,16 +1,5 @@
-// Debug logging function
-function debugLog(message, data) {
-  console.log(`[ClickLoom Popup] ${message}`, data || '');
-}
-
-// Initialize with debug info
-debugLog('Popup script loaded');
-debugLog('Using Axios version', axios.VERSION);
-
 // Initialize DOM Elements and Event Listeners after the document is loaded
 document.addEventListener('DOMContentLoaded', () => {
-  debugLog('DOM content loaded');
-  
   // DOM Elements
   const initialScreen = document.querySelector('.initial-screen');
   const loadingScreen = document.querySelector('.loading');
@@ -37,7 +26,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Show specific screen
   function showScreen(screen) {
-    debugLog('Showing screen', screen);
     initialScreen.classList.remove('active');
     loadingScreen.style.display = 'none';
     resultsScreen.classList.remove('active');
@@ -53,7 +41,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Update verdict UI based on risk score
   function updateVerdict(score) {
-    debugLog('Updating verdict with score', score);
     let verdict, icon;
     if (score <= 3) {
       verdict = 'safe';
@@ -75,7 +62,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Display scan results
   function displayResults(data) {
-    debugLog('Displaying scan results', data);
+    // Check if there's an error
+    if (data.error) {
+      showError(data.message);
+      return;
+    }
+    
     updateVerdict(data.risk_score);
     
     totalScripts.textContent = data.script_analysis.total_scripts;
@@ -88,16 +80,62 @@ document.addEventListener('DOMContentLoaded', () => {
     showScreen('results');
   }
 
+  // Show error message
+  function showError(message) {
+    // Hide loading screen
+    loadingScreen.style.display = 'none';
+    
+    // Create error message in the initial screen
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.innerHTML = `
+      <div style="text-align: center; padding: 20px;">
+        <div style="color: #e74c3c; font-size: 24px; margin-bottom: 10px;">⚠️</div>
+        <div style="color: #e74c3c; font-size: 16px; margin-bottom: 15px;">${message}</div>
+        <button id="retryScan" style="
+          background: #3498db;
+          color: white;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 5px;
+          cursor: pointer;
+          margin-right: 10px;
+        ">Retry Scan</button>
+        <button id="proceedAnyway" style="
+          background: #95a5a6;
+          color: white;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 5px;
+          cursor: pointer;
+        ">Proceed Anyway</button>
+      </div>
+    `;
+    
+    // Clear the initial screen and add error message
+    initialScreen.innerHTML = '';
+    initialScreen.appendChild(errorDiv);
+    initialScreen.classList.add('active');
+    
+    // Add event listeners for error buttons
+    document.getElementById('retryScan').addEventListener('click', () => {
+      // Restore original initial screen
+      location.reload();
+    });
+    
+    document.getElementById('proceedAnyway').addEventListener('click', () => {
+      navigateToUrl(currentUrl);
+    });
+  }
+
   // Navigate to URL
   async function navigateToUrl(url) {
-    debugLog('Navigating to URL', url);
     try {
       await chrome.runtime.sendMessage({
         type: 'allowUrl',
         url: url
       });
       
-      debugLog('Navigation request sent');
       window.close();
     } catch (error) {
       console.error('Error navigating to URL:', error);
@@ -106,13 +144,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Cancel navigation
   async function cancelNavigation() {
-    debugLog('Cancelling navigation');
     try {
       await chrome.runtime.sendMessage({
         type: 'cancelUrl'
       });
       
-      debugLog('Cancel request sent');
       window.close();
     } catch (error) {
       console.error('Error cancelling navigation:', error);
@@ -121,16 +157,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialize popup
   async function initPopup() {
-    debugLog('Initializing popup');
     try {
       const { clickedUrl } = await chrome.storage.local.get('clickedUrl');
-      debugLog('Retrieved clicked URL from storage', clickedUrl);
       if (clickedUrl) {
         currentUrl = clickedUrl;
         urlToScan.textContent = clickedUrl;
         scannedUrl.textContent = clickedUrl;
-      } else {
-        debugLog('No clicked URL found in storage');
       }
     } catch (error) {
       console.error('Error initializing popup:', error);
@@ -139,41 +171,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Event Listeners
   startScanButton.addEventListener('click', async () => {
-    debugLog('Start scan button clicked');
     showScreen('loading');
     
     try {
-      debugLog('Sending scanUrl message', currentUrl);
       const response = await chrome.runtime.sendMessage({
         type: 'scanUrl',
         url: currentUrl
       });
       
-      debugLog('Scan response received', response);
-      
-      if (response.error) {
-        throw new Error(response.error);
-      }
-      
       displayResults(response);
     } catch (error) {
       console.error('Error during scan:', error);
-      showScreen('initial');
+      showError("An unexpected error occurred. Please try again.");
     }
   });
 
   cancelScanButton.addEventListener('click', async () => {
-    debugLog('Cancel/Skip scan button clicked');
     navigateToUrl(currentUrl);
   });
 
   proceedButton.addEventListener('click', async () => {
-    debugLog('Proceed button clicked');
     navigateToUrl(currentUrl);
   });
 
   goBackButton.addEventListener('click', () => {
-    debugLog('Go back button clicked');
     cancelNavigation();
   });
 

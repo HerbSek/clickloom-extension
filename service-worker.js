@@ -5,20 +5,9 @@ importScripts('axios.min.js');
 let scanCache = new Map();
 let allowedUrls = new Set();
 
-// Debug logging function
-function debugLog(message, data) {
-  console.log(`[ClickLoom Debug] ${message}`, data || '');
-}
-
-// Initialize with debug info
-debugLog('Service worker started');
-debugLog('Using Axios version', axios.VERSION);
-
 // Test helper functionality
-debugLog('Setting up test helper');
 // Function to open the test page
 function openTestPage() {
-  debugLog('Opening test page');
   const testPagePath = chrome.runtime.getURL('test.html');
   chrome.tabs.create({ url: testPagePath });
 }
@@ -37,43 +26,14 @@ try {
       openTestPage();
     }
   });
-  
-  debugLog('Test helper setup complete');
 } catch (error) {
   console.error('Error setting up test helper:', error);
 }
 
-// Mock data for testing when API is unavailable
-function getMockScanResult(url) {
-  debugLog('Using mock data for URL', url);
-  return {
-    verdict: "Safe",
-    risk_score: 2.5,
-    summary: "This website appears to be safe to visit.",
-    recommendations: "No major security concerns detected. You can proceed safely.",
-    page_text_findings: {
-      phishing_indicators: false
-    },
-    script_analysis: {
-      total_scripts: 5,
-      external_scripts: 1,
-      minified_or_encoded: false
-    },
-    link_analysis: {
-      total_links: 12,
-      external_links: 3
-    }
-  };
-}
-
 // Function to scan a URL using the API
 async function scanUrl(url) {
-  debugLog('Scanning URL with API', url);
-  
   try {
-    // Use params instead of URL query parameters
     const apiUrl = 'https://llm-2g3j.onrender.com/results';
-    debugLog('API request URL', apiUrl);
     
     const response = await axios.get(apiUrl, {
       params: {
@@ -85,11 +45,7 @@ async function scanUrl(url) {
       }
     });
     
-    debugLog('API response status', response.status);
-    
     if (response.status === 200 && response.data) {
-      debugLog('Scan results received', response.data);
-      
       // Ensure risk_score is present (some API responses might not have it)
       if (!response.data.risk_score && response.data.verdict) {
         // Assign risk score based on verdict if not present
@@ -106,7 +62,6 @@ async function scanUrl(url) {
           default:
             response.data.risk_score = 3.0;
         }
-        debugLog('Added missing risk_score based on verdict', response.data.risk_score);
       }
       
       return response.data;
@@ -114,8 +69,11 @@ async function scanUrl(url) {
       throw new Error(`Invalid API response: ${response.status}`);
     }
   } catch (error) {
-    debugLog('API error', error.message);
-    return getMockScanResult(url);
+    console.error('API error:', error.message);
+    return {
+      error: true,
+      message: "Cannot retrieve scan results at this time. Please try again later."
+    };
   }
 }
 
@@ -124,11 +82,9 @@ async function sendMessageToActiveTab(message) {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab || !tab.id) {
-      debugLog('No active tab found for sending message');
       return;
     }
     
-    debugLog('Sending message to content script', message);
     await chrome.tabs.sendMessage(tab.id, message);
   } catch (error) {
     console.error('Error sending message to content script:', error);
@@ -138,7 +94,6 @@ async function sendMessageToActiveTab(message) {
 // Function to enable blocking
 async function enableBlocking() {
   try {
-    debugLog('Enabling URL blocking');
     await chrome.declarativeNetRequest.updateDynamicRules({
       removeRuleIds: [1],
       addRules: [{
@@ -151,7 +106,6 @@ async function enableBlocking() {
         }
       }]
     });
-    debugLog('URL blocking enabled');
   } catch (error) {
     console.error('Error enabling blocking:', error);
   }
@@ -160,7 +114,6 @@ async function enableBlocking() {
 // Function to disable blocking for a specific URL
 async function allowUrl(url) {
   try {
-    debugLog('Allowing URL', url);
     allowedUrls.add(url);
     
     // Instead of just allowing one URL, we'll remove the blocking rule
@@ -168,8 +121,6 @@ async function allowUrl(url) {
     await chrome.declarativeNetRequest.updateDynamicRules({
       removeRuleIds: [1]
     });
-    
-    debugLog('URL allowed, blocking disabled');
   } catch (error) {
     console.error('Error allowing URL:', error);
   }
@@ -178,7 +129,6 @@ async function allowUrl(url) {
 // Function to open the popup
 async function openPopup() {
   try {
-    debugLog('Opening popup');
     // Get the current active tab
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab) {
@@ -196,8 +146,6 @@ async function openPopup() {
 // Function to handle navigation to a URL
 async function navigateToUrl(url) {
   try {
-    debugLog('Navigating to URL', url);
-    
     // Allow the URL
     await allowUrl(url);
     
@@ -213,8 +161,6 @@ async function navigateToUrl(url) {
       type: 'proceedToUrl',
       url: url
     });
-    
-    debugLog('Navigation message sent');
   } catch (error) {
     console.error('Error navigating to URL:', error);
   }
@@ -223,14 +169,10 @@ async function navigateToUrl(url) {
 // Function to cancel navigation
 async function cancelNavigation() {
   try {
-    debugLog('Cancelling navigation');
-    
     // Send message to content script to cancel
     await sendMessageToActiveTab({
       type: 'cancelNavigation'
     });
-    
-    debugLog('Cancel message sent');
   } catch (error) {
     console.error('Error cancelling navigation:', error);
   }
@@ -238,45 +180,45 @@ async function cancelNavigation() {
 
 // Listen for messages from content script and popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  debugLog('Message received', message);
-  
-  if (message.type === 'openPopup') {
-    openPopup();
-    return true;
-  } else if (message.type === 'scanUrl') {
-    // Check cache first
-    if (scanCache.has(message.url)) {
-      debugLog('Using cached result for', message.url);
-      sendResponse(scanCache.get(message.url));
+  try {
+    if (message.type === 'openPopup') {
+      openPopup();
+      return true;
+    } else if (message.type === 'scanUrl') {
+      // Check cache first
+      if (scanCache.has(message.url)) {
+        sendResponse(scanCache.get(message.url));
+        return true;
+      }
+
+      // Scan URL and respond
+      scanUrl(message.url).then(data => {
+        // Cache the results
+        scanCache.set(message.url, data);
+        sendResponse(data);
+      });
+
+      return true; // Required for async response
+    } else if (message.type === 'allowUrl') {
+      navigateToUrl(message.url);
+      return true;
+    } else if (message.type === 'cancelUrl') {
+      cancelNavigation();
+      return true;
+    } else if (message.type === 'showOverlay') {
+      sendMessageToActiveTab({ type: 'showOverlay' });
+      return true;
+    } else if (message.type === 'hideOverlay') {
+      sendMessageToActiveTab({ type: 'hideOverlay' });
       return true;
     }
-
-    // Scan URL and respond
-    scanUrl(message.url).then(data => {
-      // Cache the results
-      scanCache.set(message.url, data);
-      sendResponse(data);
-    });
-
-    return true; // Required for async response
-  } else if (message.type === 'allowUrl') {
-    navigateToUrl(message.url);
-    return true;
-  } else if (message.type === 'cancelUrl') {
-    cancelNavigation();
-    return true;
-  } else if (message.type === 'showOverlay') {
-    sendMessageToActiveTab({ type: 'showOverlay' });
-    return true;
-  } else if (message.type === 'hideOverlay') {
-    sendMessageToActiveTab({ type: 'hideOverlay' });
-    return true;
+  } catch (error) {
+    console.error('Error handling message:', error);
   }
 });
 
 // Clear old cache entries periodically (every hour)
 setInterval(() => {
-  debugLog('Clearing cache and allowed URLs');
   scanCache.clear();
   allowedUrls.clear();
   enableBlocking(); // Re-enable blocking after clearing cache
@@ -289,12 +231,9 @@ enableBlocking();
 chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
   // Only handle main frame navigation
   if (details.frameId !== 0) return;
-  
-  debugLog('Navigation detected', details.url);
 
   // If URL is not in allowed list, prevent navigation
   if (!allowedUrls.has(details.url)) {
-    debugLog('URL not in allowed list, showing popup');
     // Store the URL and show popup
     await chrome.storage.local.set({ 'clickedUrl': details.url });
     
@@ -305,11 +244,9 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
         await chrome.tabs.sendMessage(tab.id, { type: 'showOverlay' });
       }
     } catch (error) {
-      debugLog('Could not show overlay, might be a new page load', error);
+      // Ignore errors for new page loads
     }
     
     openPopup();
-  } else {
-    debugLog('URL is in allowed list, allowing navigation');
   }
 }); 
