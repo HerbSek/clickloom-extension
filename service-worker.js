@@ -34,6 +34,12 @@ try {
       title: 'Open Navigation Flow Test',
       contexts: ['action'],
     });
+
+    chrome.contextMenus.create({
+      id: 'open-error-handling-test',
+      title: 'Open Error Handling Test',
+      contexts: ['action'],
+    });
   });
 
   // Handle context menu clicks
@@ -46,15 +52,37 @@ try {
     } else if (info.menuItemId === 'open-navigation-flow-test') {
       const testPagePath = chrome.runtime.getURL('test-navigation-flow.html');
       chrome.tabs.create({ url: testPagePath });
+    } else if (info.menuItemId === 'open-error-handling-test') {
+      const testPagePath = chrome.runtime.getURL('test-error-handling.html');
+      chrome.tabs.create({ url: testPagePath });
     }
   });
 } catch (error) {
   console.error('Error setting up test helper:', error);
 }
 
+// Function to validate URL
+function isValidUrl(url) {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
+  } catch (error) {
+    return false;
+  }
+}
+
 // Function to scan a URL using the API
 async function scanUrl(url) {
   try {
+    // Validate URL first
+    if (!isValidUrl(url)) {
+      return {
+        error: true,
+        errorType: 'invalid_url',
+        message: 'The URL is not valid or uses an unsupported protocol.'
+      };
+    }
+
     const apiUrl = 'https://llm-2g3j.onrender.com/results';
     
     const response = await axios.get(apiUrl, {
@@ -92,9 +120,36 @@ async function scanUrl(url) {
     }
   } catch (error) {
     console.error('API error:', error.message);
+
+    // Determine error type for better user messaging
+    let errorType = 'api_error';
+    let errorMessage = 'Cannot retrieve scan results at this time. Please try again later.';
+
+    if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+      errorType = 'api_timeout';
+      errorMessage = 'The scan request timed out. The service may be experiencing high load.';
+    } else if (error.response) {
+      // Server responded with error status
+      if (error.response.status >= 500) {
+        errorType = 'api_unavailable';
+        errorMessage = 'The scanning service is temporarily unavailable. Please try again later.';
+      } else if (error.response.status === 404) {
+        errorType = 'api_error';
+        errorMessage = 'The scanning service endpoint was not found.';
+      } else if (error.response.status === 429) {
+        errorType = 'api_error';
+        errorMessage = 'Too many requests. Please wait a moment before trying again.';
+      }
+    } else if (error.request) {
+      // Network error
+      errorType = 'api_error';
+      errorMessage = 'Network error. Please check your internet connection.';
+    }
+
     return {
       error: true,
-      message: "Cannot retrieve scan results at this time. Please try again later."
+      errorType: errorType,
+      message: errorMessage
     };
   }
 }
@@ -326,9 +381,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true; // Required for async response
     } else if (message.type === 'proceedToUrl') {
       proceedToUrl(message.url).then((success) => {
-        sendResponse({ success: success });
+        if (success) {
+          sendResponse({ success: true });
+        } else {
+          sendResponse({
+            success: false,
+            error: 'Navigation failed. The website may be unreachable.',
+            errorType: 'navigation_failed'
+          });
+        }
       }).catch(error => {
-        sendResponse({ success: false, error: error.message });
+        console.error('Navigation error:', error);
+        sendResponse({
+          success: false,
+          error: error.message || 'Navigation failed unexpectedly.',
+          errorType: 'navigation_failed'
+        });
       });
       return true; // Required for async response
     } else if (message.type === 'cancelNavigation') {

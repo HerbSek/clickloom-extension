@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Error Handling Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f8f9fa;
+    }
+    h1 {
+      color: #333;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .test-section {
+      margin-bottom: 30px;
+      padding: 20px;
+      border: 2px solid #ddd;
+      border-radius: 10px;
+      background-color: white;
+    }
+    .test-link {
+      display: block;
+      color: #0066cc;
+      text-decoration: none;
+      padding: 15px;
+      border: 2px solid #0066cc;
+      border-radius: 5px;
+      margin: 10px 0;
+      text-align: center;
+      font-size: 16px;
+      font-weight: bold;
+    }
+    .test-link:hover {
+      background-color: #0066cc;
+      color: white;
+    }
+    .error-type {
+      background-color: #ff6b6b;
+      color: white;
+      padding: 5px 10px;
+      border-radius: 3px;
+      font-size: 12px;
+      margin-left: 10px;
+    }
+    .description {
+      color: #666;
+      margin-bottom: 15px;
+      font-style: italic;
+    }
+    .instructions {
+      background-color: #e3f2fd;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      border-left: 4px solid #2196f3;
+    }
+    .expected {
+      background-color: #f3e5f5;
+      padding: 10px;
+      border-radius: 5px;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🚨 Error Handling Test Suite</h1>
+  
+  <div class="instructions">
+    <h3>📋 Test Instructions:</h3>
+    <ol>
+      <li>Click each test link below</li>
+      <li>Choose "🔍 Check Link Safety" to trigger the scan</li>
+      <li>Observe the error message and available options</li>
+      <li>Test the "Try Scan Again", "Proceed to Site", and "Cancel" buttons</li>
+    </ol>
+    <p><strong>Note:</strong> These tests are designed to trigger specific error conditions.</p>
+  </div>
+
+  <div class="test-section">
+    <h2>🌐 Network & API Errors</h2>
+    <p class="description">These should trigger API-related error messages.</p>
+    
+    <a href="https://httpstat.us/500" class="test-link">
+      Server Error Test (500) <span class="error-type">API_UNAVAILABLE</span>
+    </a>
+    <div class="expected">Expected: "Service Unavailable" error with retry option</div>
+    
+    <a href="https://httpstat.us/404" class="test-link">
+      Not Found Test (404) <span class="error-type">API_ERROR</span>
+    </a>
+    <div class="expected">Expected: "Network Error" with retry option</div>
+    
+    <a href="https://httpstat.us/429" class="test-link">
+      Rate Limited Test (429) <span class="error-type">API_ERROR</span>
+    </a>
+    <div class="expected">Expected: "Too many requests" error with retry option</div>
+  </div>
+
+  <div class="test-section">
+    <h2>⏱️ Timeout Errors</h2>
+    <p class="description">These should trigger timeout-related errors.</p>
+    
+    <a href="https://httpstat.us/200?sleep=30000" class="test-link">
+      Slow Response Test <span class="error-type">API_TIMEOUT</span>
+    </a>
+    <div class="expected">Expected: "Scan Timeout" error with retry option</div>
+  </div>
+
+  <div class="test-section">
+    <h2>🚫 Invalid URLs</h2>
+    <p class="description">These should trigger invalid URL errors.</p>
+    
+    <a href="ftp://invalid-protocol.com" class="test-link">
+      Invalid Protocol Test <span class="error-type">INVALID_URL</span>
+    </a>
+    <div class="expected">Expected: "Invalid Website" error without retry option</div>
+    
+    <a href="https://this-domain-definitely-does-not-exist-12345.com" class="test-link">
+      Non-existent Domain <span class="error-type">NAVIGATION_FAILED</span>
+    </a>
+    <div class="expected">Expected: May show navigation failed error</div>
+  </div>
+
+  <div class="test-section">
+    <h2>✅ Working Links</h2>
+    <p class="description">These should work normally for comparison.</p>
+    
+    <a href="https://www.google.com" class="test-link">
+      Google (Should Work) <span style="background-color: #4caf50; color: white; padding: 5px 10px; border-radius: 3px; font-size: 12px; margin-left: 10px;">NORMAL</span>
+    </a>
+    <div class="expected">Expected: Normal scan results or successful navigation</div>
+    
+    <a href="https://www.github.com" class="test-link">
+      GitHub (Should Work) <span style="background-color: #4caf50; color: white; padding: 5px 10px; border-radius: 3px; font-size: 12px; margin-left: 10px;">NORMAL</span>
+    </a>
+    <div class="expected">Expected: Normal scan results or successful navigation</div>
+  </div>
+
+  <div class="test-section">
+    <h2>🔧 Error Recovery Testing</h2>
+    <p class="description">Test the error recovery buttons.</p>
+    
+    <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; border-left: 4px solid #ffc107;">
+      <h4>🧪 Recovery Test Steps:</h4>
+      <ol>
+        <li><strong>Retry Button:</strong> Click "Try Scan Again" to retry the same scan</li>
+        <li><strong>Proceed Button:</strong> Click "Proceed to Site" to bypass scanning</li>
+        <li><strong>Cancel Button:</strong> Click "Cancel" to stay on current page</li>
+      </ol>
+    </div>
+  </div>
+
+  <script>
+    // Log when page loads
+    console.log('Error handling test page loaded');
+    
+    // Add click logging
+    document.addEventListener('click', (event) => {
+      if (event.target.tagName === 'A') {
+        console.log('Test link clicked:', event.target.href);
+        console.log('Expected error type:', event.target.querySelector('.error-type')?.textContent || 'NORMAL');
+      }
+    });
+    
+    // Add some dynamic error test links
+    setTimeout(() => {
+      const dynamicSection = document.createElement('div');
+      dynamicSection.className = 'test-section';
+      dynamicSection.innerHTML = `
+        <h2>⚡ Dynamic Error Tests</h2>
+        <p class="description">Dynamically added error test links.</p>
+        <a href="https://httpstat.us/503" class="test-link">
+          Service Unavailable (503) <span class="error-type">API_UNAVAILABLE</span>
+        </a>
+        <div class="expected">Expected: "Service Unavailable" error</div>
+      `;
+      document.body.appendChild(dynamicSection);
+    }, 2000);
+  </script>
+</body>
+</html>

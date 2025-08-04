@@ -52,7 +52,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["test.html", "test-webRequest.html", "test-navigation-flow.html", "axios.min.js"],
+      "resources": ["test.html", "test-webRequest.html", "test-navigation-flow.html", "test-error-handling.html", "axios.min.js"],
       "matches": ["<all_urls>"]
     }
   ]

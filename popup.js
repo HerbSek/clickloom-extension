@@ -66,7 +66,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Check if there's an error
     if (data.error) {
-      showError(data.message);
+      const errorType = data.errorType || 'api_error';
+      showError(errorType, data.message);
       return;
     }
 
@@ -182,51 +183,123 @@ document.addEventListener('DOMContentLoaded', () => {
     showScreen('results');
   }
 
-  // Show error message
-  function showError(message) {
+  // Enhanced error handling with different error types
+  function showError(errorType, customMessage = null) {
     // Hide loading screen
     loadingScreen.style.display = 'none';
-    
-    // Create error message in the initial screen
+
+    let icon, title, message, showRetry = true;
+
+    switch(errorType) {
+      case 'api_timeout':
+        icon = '⏱️';
+        title = 'Scan Timeout';
+        message = customMessage || 'The security scan is taking longer than expected. This might be due to network issues or high server load.';
+        break;
+      case 'api_error':
+        icon = '🌐';
+        title = 'Network Error';
+        message = customMessage || 'Unable to connect to the security scanning service. Please check your internet connection.';
+        break;
+      case 'api_unavailable':
+        icon = '🔧';
+        title = 'Service Unavailable';
+        message = customMessage || 'The security scanning service is temporarily unavailable. Please try again later.';
+        break;
+      case 'invalid_url':
+        icon = '🚫';
+        title = 'Invalid Website';
+        message = customMessage || 'The website URL appears to be invalid or the site does not exist.';
+        showRetry = false;
+        break;
+      case 'navigation_failed':
+        icon = '❌';
+        title = 'Navigation Failed';
+        message = customMessage || 'Unable to navigate to the website. The site may be down or unreachable.';
+        showRetry = false;
+        break;
+      default:
+        icon = '⚠️';
+        title = 'Error';
+        message = customMessage || 'An unexpected error occurred. Please try again.';
+    }
+
+    // Create error message
     const errorDiv = document.createElement('div');
     errorDiv.className = 'error-message';
     errorDiv.innerHTML = `
       <div style="text-align: center; padding: 20px;">
-        <div style="color: #e74c3c; font-size: 24px; margin-bottom: 10px;">⚠️</div>
-        <div style="color: #e74c3c; font-size: 16px; margin-bottom: 15px;">${message}</div>
-        <button id="retryScan" style="
-          background: #3498db;
-          color: white;
-          border: none;
-          padding: 10px 20px;
-          border-radius: 5px;
-          cursor: pointer;
-          margin-right: 10px;
-        ">Retry Scan</button>
-        <button id="proceedAnyway" style="
-          background: #95a5a6;
-          color: white;
-          border: none;
-          padding: 10px 20px;
-          border-radius: 5px;
-          cursor: pointer;
-        ">Proceed Anyway</button>
+        <div style="font-size: 32px; margin-bottom: 15px;">${icon}</div>
+        <div style="color: #e74c3c; font-size: 18px; font-weight: bold; margin-bottom: 10px;">${title}</div>
+        <div style="color: #555; font-size: 14px; margin-bottom: 20px; line-height: 1.4;">${message}</div>
+        <div style="display: flex; gap: 10px; justify-content: center;">
+          ${showRetry ? `
+            <button id="retryScan" style="
+              background: #3498db;
+              color: white;
+              border: none;
+              padding: 12px 20px;
+              border-radius: 5px;
+              cursor: pointer;
+              font-size: 14px;
+              font-weight: bold;
+            ">🔄 Try Scan Again</button>
+          ` : ''}
+          <button id="proceedAnyway" style="
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+          ">➡️ Proceed to Site</button>
+          <button id="cancelNavigation" style="
+            background: #95a5a6;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+          ">❌ Cancel</button>
+        </div>
       </div>
     `;
-    
+
     // Clear the initial screen and add error message
     initialScreen.innerHTML = '';
     initialScreen.appendChild(errorDiv);
     initialScreen.classList.add('active');
-    
+
     // Add event listeners for error buttons
-    document.getElementById('retryScan').addEventListener('click', () => {
-      // Restore original initial screen
-      location.reload();
-    });
-    
+    if (showRetry) {
+      document.getElementById('retryScan').addEventListener('click', () => {
+        console.log('Retrying scan for:', currentUrl);
+        showScreen('loading');
+        // Retry the scan
+        chrome.runtime.sendMessage({
+          type: 'scanUrl',
+          url: currentUrl
+        }).then(response => {
+          displayResults(response);
+        }).catch(error => {
+          console.error('Retry scan error:', error);
+          showError('api_error', 'Scan failed again. Please check your connection.');
+        });
+      });
+    }
+
     document.getElementById('proceedAnyway').addEventListener('click', () => {
-      navigateToUrl(currentUrl);
+      console.log('Proceeding anyway to:', currentUrl);
+      proceedToUrl(currentUrl);
+    });
+
+    document.getElementById('cancelNavigation').addEventListener('click', () => {
+      console.log('Cancelling navigation');
+      cancelNavigation();
     });
   }
 
@@ -247,8 +320,9 @@ document.addEventListener('DOMContentLoaded', () => {
         window.close();
       } else {
         console.error('Navigation failed:', response.error);
-        // Show error to user
-        alert('Navigation failed. Please try again.');
+        // Show navigation error to user
+        const errorType = response.errorType || 'navigation_failed';
+        showError(errorType, response.error);
       }
     } catch (error) {
       console.error('Error proceeding to URL:', error);
@@ -290,18 +364,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Event Listeners
   startScanButton.addEventListener('click', async () => {
+    console.log('Starting scan for:', currentUrl);
     showScreen('loading');
-    
+
     try {
       const response = await chrome.runtime.sendMessage({
         type: 'scanUrl',
         url: currentUrl
       });
-      
+
       displayResults(response);
     } catch (error) {
       console.error('Error during scan:', error);
-      showError("An unexpected error occurred. Please try again.");
+      // Handle different types of scan errors
+      if (error.message && error.message.includes('Extension context invalidated')) {
+        showError('api_error', 'Extension was reloaded. Please close this popup and try again.');
+      } else if (error.message && error.message.includes('Could not establish connection')) {
+        showError('api_error', 'Connection to extension failed. Please reload the extension.');
+      } else {
+        showError('api_error', 'An unexpected error occurred during scanning. Please try again.');
+      }
     }
   });
 
