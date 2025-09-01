@@ -21,6 +21,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const cancelScanButton = document.getElementById('cancelScan');
   const proceedButton = document.getElementById('proceedToSite');
   const goBackButton = document.getElementById('goBack');
+  
+
 
   let currentUrl = '';
 
@@ -180,6 +182,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     showScreen('results');
+    
+    // Update domain trust status after scan
+    setTimeout(async () => {
+      if (currentUrl) {
+        await checkDomainTrustStatus(currentUrl);
+      }
+    }, 500);
   }
 
   // Show error message
@@ -280,6 +289,9 @@ document.addEventListener('DOMContentLoaded', () => {
         urlToScan.textContent = clickedUrl;
         scannedUrl.textContent = clickedUrl;
         console.log('Current URL set to:', currentUrl);
+        
+        // Check and display domain trust status
+        await checkDomainTrustStatus(clickedUrl);
       } else {
         console.error('No clickedUrl found in storage!');
       }
@@ -287,6 +299,105 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Error initializing popup:', error);
     }
   }
+
+  // Check if the current URL's domain is already trusted
+  async function checkDomainTrustStatus(url) {
+    try {
+      const urlObj = new URL(url);
+      const domain = urlObj.hostname;
+      const fullUrl = urlObj.href;
+      
+      console.log('Checking domain trust status for:', domain);
+      
+      const response = await chrome.runtime.sendMessage({
+        type: 'getTrustedDomains'
+      });
+      
+      if (response && response.domains) {
+        console.log('Current trusted domains:', response.domains);
+        const isTrusted = response.domains.includes(domain);
+        displayDomainStatus(isTrusted, domain, fullUrl, response.domains);
+      } else {
+        console.log('No trusted domains found');
+        displayDomainStatus(false, domain, fullUrl, []);
+      }
+    } catch (error) {
+      console.error('Error checking domain trust status:', error);
+      // Fallback to showing as new domain
+      try {
+        const urlObj = new URL(url);
+        const domain = urlObj.hostname;
+        displayDomainStatus(false, domain, url, []);
+      } catch (e) {
+        console.error('Error parsing URL:', e);
+      }
+    }
+  }
+
+  // Display domain trust status with detailed information
+  function displayDomainStatus(isTrusted, domain, fullUrl, trustedDomains) {
+    const domainStatus = document.getElementById('domainStatus');
+    const statusTrusted = document.getElementById('statusTrusted');
+    const statusNew = document.getElementById('statusNew');
+    const domainInfoTrusted = document.getElementById('domainInfoTrusted');
+    const domainInfoNew = document.getElementById('domainInfoNew');
+    
+    domainStatus.style.display = 'block';
+    
+    if (isTrusted) {
+      statusTrusted.style.display = 'block';
+      statusNew.style.display = 'none';
+      
+      // Show trusted domain info
+      domainInfoTrusted.innerHTML = `
+        <strong>Domain:</strong> ${domain}<br>
+        <strong>URL:</strong> ${fullUrl}<br>
+        <strong>Trust Level:</strong> Full Trust (Domain + All Sublinks)<br>
+        <strong>Status:</strong> ✅ Approved and Trusted
+      `;
+    } else {
+      statusTrusted.style.display = 'none';
+      statusNew.style.display = 'block';
+      
+      // Show new domain info
+      domainInfoNew.innerHTML = `
+        <strong>Domain:</strong> ${domain}<br>
+        <strong>URL:</strong> ${fullUrl}<br>
+        <strong>Trust Level:</strong> Not Yet Trusted<br>
+        <strong>Status:</strong> ⚠️ Requires Approval<br>
+        <strong>Note:</strong> After approval, all sublinks will be automatically trusted
+      `;
+      domainInfoNew.className = 'domain-info new-domain';
+    }
+    
+    // Update debug information
+    updateDebugInfo(domain, isTrusted, trustedDomains);
+    
+    console.log(`Domain ${domain} is ${isTrusted ? 'trusted' : 'not trusted'}`);
+  }
+
+  // Update debug information
+  function updateDebugInfo(domain, isTrusted, trustedDomains) {
+    const debugSection = document.getElementById('debugSection');
+    const debugContent = document.getElementById('debugContent');
+    
+    debugSection.style.display = 'block';
+    
+    const timestamp = new Date().toLocaleTimeString();
+    const debugInfo = `
+      <strong>Timestamp:</strong> ${timestamp}<br>
+      <strong>Current Domain:</strong> ${domain}<br>
+      <strong>Trust Status:</strong> ${isTrusted ? '✅ TRUSTED' : '❌ NOT TRUSTED'}<br>
+      <strong>Total Trusted Domains:</strong> ${trustedDomains.length}<br>
+      <strong>Trusted Domains List:</strong><br>
+      ${trustedDomains.length > 0 ? trustedDomains.map(d => `  • ${d}`).join('<br>') : '  (none)'}<br>
+      <strong>Note:</strong> This updates in real-time as you approve domains
+    `;
+    
+    debugContent.innerHTML = debugInfo;
+  }
+
+
 
   // Event Listeners
   startScanButton.addEventListener('click', async () => {
@@ -302,6 +413,28 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {
       console.error('Error during scan:', error);
       showError("An unexpected error occurred. Please try again.");
+    }
+  });
+
+  // Refresh domain status button
+  document.getElementById('refreshDomainStatus').addEventListener('click', async () => {
+    console.log('Refreshing domain status for:', currentUrl);
+    if (currentUrl) {
+      await checkDomainTrustStatus(currentUrl);
+    }
+  });
+
+  // Toggle debug information
+  document.getElementById('toggleDebug').addEventListener('click', () => {
+    const debugContent = document.getElementById('debugContent');
+    const toggleBtn = document.getElementById('toggleDebug');
+    
+    if (debugContent.style.display === 'none') {
+      debugContent.style.display = 'block';
+      toggleBtn.textContent = 'Hide Debug';
+    } else {
+      debugContent.style.display = 'none';
+      toggleBtn.textContent = 'Show Debug';
     }
   });
 
@@ -326,6 +459,8 @@ document.addEventListener('DOMContentLoaded', () => {
   goBackButton.addEventListener('click', () => {
     cancelNavigation();
   });
+
+
 
   // Initialize popup
   initPopup();

@@ -8,7 +8,7 @@
     "condition": {
       "urlFilter": "*",
       "resourceTypes": ["main_frame"],
-      "isUrlFilterCaseSensitive": false
+      "excludedInitiatorDomains": ["chrome-extension://*", "moz-extension://*", "about://*", "chrome://*", "edge://*"]
     }
   }
 ]

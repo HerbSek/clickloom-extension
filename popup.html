@@ -12,11 +12,42 @@
       <h2>🔒 Link Blocked</h2>
       <p>ClickLoom has blocked navigation to:</p>
       <div class="url" id="urlToScan"></div>
+      
+      <!-- Domain Trust Status -->
+      <div class="domain-status" id="domainStatus" style="display: none;">
+        <div class="status-trusted" id="statusTrusted" style="display: none;">
+          ✅ <strong>Domain Already Trusted</strong><br>
+          <small>This domain and all its sublinks are trusted. You can proceed safely.</small>
+          <div class="domain-info" id="domainInfoTrusted"></div>
+        </div>
+        <div class="status-new" id="statusNew" style="display: none;">
+          ⚠️ <strong>New Domain</strong><br>
+          <small>This domain hasn't been scanned before. Consider checking its safety.</small>
+          <div class="domain-info" id="domainInfoNew"></div>
+        </div>
+      </div>
+      
       <p>What would you like to do?</p>
       <div class="button-group">
         <button class="btn-proceed" id="startScan">🔍 Check Link Safety</button>
         <button class="btn-cancel" id="cancelScan">➡️ Proceed Directly</button>
       </div>
+      
+      <!-- Refresh Domain Status Button -->
+      <div class="refresh-section">
+        <button class="btn-refresh" id="refreshDomainStatus">🔄 Refresh Domain Status</button>
+      </div>
+      
+      <!-- Debug Information -->
+      <div class="debug-section" id="debugSection" style="display: none;">
+        <div class="debug-header">
+          <h4>🔍 Debug Info</h4>
+          <button class="btn-toggle-debug" id="toggleDebug">Hide Debug</button>
+        </div>
+        <div class="debug-content" id="debugContent"></div>
+      </div>
+      
+
     </div>
 
     <!-- Loading Screen -->

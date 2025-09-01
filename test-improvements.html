@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>ClickLoom Improvements Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h1 {
+      color: #333;
+      text-align: center;
+    }
+    .test-section {
+      margin-bottom: 30px;
+      padding: 20px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      background: #f9f9f9;
+    }
+    .test-section h2 {
+      color: #0066cc;
+      margin-top: 0;
+    }
+    .test-links {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin: 20px 0;
+    }
+    .test-link {
+      padding: 15px;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      text-decoration: none;
+      color: #0066cc;
+      transition: all 0.3s ease;
+    }
+    .test-link:hover {
+      background: #f0f0f0;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .description {
+      color: #666;
+      margin-bottom: 15px;
+      font-style: italic;
+    }
+    .status {
+      padding: 10px;
+      border-radius: 5px;
+      margin: 10px 0;
+      font-weight: bold;
+    }
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .status.warning {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeaa7;
+    }
+    .status.info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔧 ClickLoom Extension - Improvements Test</h1>
+  
+  <div class="status info">
+    <strong>Test Instructions:</strong> 
+    ClickLoom should now be more selective about which links it blocks. 
+    Try clicking the links below to test the improvements.
+  </div>
+
+  <div class="test-section">
+    <h2>✅ Safe/Trusted Links</h2>
+    <p class="description">These links should either be allowed directly or show low risk scores.</p>
+    <div class="test-links">
+      <a href="https://www.google.com" class="test-link">Google (Major trusted site)</a>
+      <a href="https://www.github.com" class="test-link">GitHub (Developer trusted site)</a>
+      <a href="https://www.wikipedia.org" class="test-link">Wikipedia (Educational trusted site)</a>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>⚠️ Medium Risk Links</h2>
+    <p class="description">These should trigger scanning but may have moderate risk scores.</p>
+    <div class="test-links">
+      <a href="https://bit.ly/example" class="test-link">Bit.ly (URL shortener - suspicious)</a>
+      <a href="https://tinyurl.com/example" class="test-link">TinyURL (URL shortener - suspicious)</a>
+      <a href="https://example.com" class="test-link">Example.com (Generic domain)</a>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>🚨 High Risk Links</h2>
+    <p class="description">These should trigger scanning and show high risk scores.</p>
+    <div class="test-links">
+      <a href="https://phishing-site.net" class="test-link">Phishing-site.net (Contains 'phish')</a>
+      <a href="https://scam-example.com" class="test-link">Scam-example.com (Contains 'scam')</a>
+      <a href="http://insecure-site.com" class="test-link">HTTP Insecure Site (No HTTPS)</a>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>🔧 Extension Features Test</h2>
+    <p class="description">Test the new automatic sublink trust functionality.</p>
+    <div class="status success">
+      <strong>New Features Added:</strong>
+      <ul>
+        <li>✅ Selective blocking (no more blocking everything)</li>
+        <li>✅ Automatic domain trust (no manual management needed)</li>
+        <li>✅ Fallback analysis when API fails</li>
+        <li>✅ Better error handling</li>
+        <li>✅ Extension pages excluded from blocking</li>
+        <li>✅ <strong>NEW:</strong> Automatic sublink trust (approved domains bypass all sublinks)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>🔗 Sublink Trust Test</h2>
+    <p class="description">Test the new automatic sublink trust functionality. After approving a main domain, all sublinks are automatically trusted.</p>
+    <div class="status info">
+      <strong>How it works:</strong>
+      <ol>
+        <li>Click on a main domain link (e.g., fast.com)</li>
+        <li>Approve it in the ClickLoom popup</li>
+        <li>Domain is automatically added to trusted list</li>
+        <li>Now try clicking sublinks - they work without scanning!</li>
+        <li>No manual domain management needed</li>
+      </ol>
+    </div>
+    <div class="test-links">
+      <a href="https://www.fast.com" class="test-link">Fast.com (Main domain - approve this first)</a>
+      <a href="https://www.fast.com/speedtest" class="test-link">Fast.com Speed Test (Should be trusted after main approval)</a>
+      <a href="https://www.fast.com/about" class="test-link">Fast.com About (Should be trusted after main approval)</a>
+      <a href="https://www.fast.com/help" class="test-link">Fast.com Help (Should be trusted after main approval)</a>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>🔄 Domain Trust Status Testing</h2>
+    <p class="description">Test the real-time domain trust status updates in the ClickLoom popup.</p>
+    <div class="status info">
+      <strong>What to test:</strong>
+      <ol>
+        <li>Click any link to open ClickLoom popup</li>
+        <li>Check the domain trust status display</li>
+        <li>Use the "Refresh Domain Status" button</li>
+        <li>Approve a domain and see status change</li>
+        <li>Verify sublinks show as trusted</li>
+      </ol>
+    </div>
+    <div class="test-links">
+      <a href="https://www.github.com" class="test-link">GitHub (Test domain trust status)</a>
+      <a href="https://www.wikipedia.org" class="test-link">Wikipedia (Test domain trust status)</a>
+      <a href="https://www.reddit.com" class="test-link">Reddit (Test domain trust status)</a>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>📋 Expected Behavior</h2>
+    <p class="description">Here's what should happen now:</p>
+    <div class="status warning">
+      <strong>Before (Broken):</strong>
+      <ul>
+        <li>❌ ALL navigation blocked (including extension pages)</li>
+        <li>❌ Extension became unusable</li>
+        <li>❌ No user control over blocking</li>
+      </ul>
+    </div>
+    <div class="status success">
+      <strong>After (Fixed):</strong>
+      <ul>
+        <li>✅ Only suspicious links trigger scanning</li>
+        <li>✅ Trusted domains bypass scanning</li>
+        <li>✅ Extension pages work normally</li>
+        <li>✅ Automatic domain trust (no manual management)</li>
+        <li>✅ Fallback analysis when API unavailable</li>
+        <li>✅ <strong>NEW:</strong> Approved domains automatically trust all sublinks</li>
+        <li>✅ <strong>NEW:</strong> No repeated scanning for same domain</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="status info">
+    <strong>Testing Tips:</strong>
+    <ul>
+      <li>Try clicking links with different risk levels</li>
+      <li>Check that the extension popup shows proper analysis</li>
+      <li>Verify that trusted domains bypass scanning</li>
+      <li><strong>NEW:</strong> Test sublink trust - approve a main domain, then try sublinks</li>
+      <li><strong>NEW:</strong> Check that the popup shows domain trust status</li>
+      <li><strong>NEW:</strong> Domains are automatically trusted when you approve them</li>
+    </ul>
+  </div>
+
+  <script>
+    // Add some dynamic content after page load
+    setTimeout(() => {
+      const testSection = document.querySelector('.test-section:last-child');
+      const dynamicLink = document.createElement('div');
+      dynamicLink.className = 'test-links';
+      dynamicLink.innerHTML = `
+        <a href="https://www.reddit.com" class="test-link">Reddit (Added Dynamically)</a>
+      `;
+      testSection.appendChild(dynamicLink);
+    }, 2000);
+  </script>
+</body>
+</html>

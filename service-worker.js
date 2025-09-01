@@ -4,6 +4,15 @@ importScripts('axios.min.js');
 // Cache for storing scan results
 let scanCache = new Map();
 let allowedUrls = new Set();
+let trustedDomains = new Set();
+
+// Load trusted domains from storage on startup
+chrome.storage.local.get(['trustedDomains'], (result) => {
+  if (result.trustedDomains) {
+    result.trustedDomains.forEach(domain => trustedDomains.add(domain));
+    console.log('Loaded trusted domains:', Array.from(trustedDomains));
+  }
+});
 
 // Test helper functionality
 // Function to open the test page
@@ -34,6 +43,12 @@ try {
       title: 'Open Navigation Flow Test',
       contexts: ['action'],
     });
+
+    chrome.contextMenus.create({
+      id: 'open-improvements-test',
+      title: 'Open Improvements Test',
+      contexts: ['action'],
+    });
   });
 
   // Handle context menu clicks
@@ -45,6 +60,9 @@ try {
       chrome.tabs.create({ url: testPagePath });
     } else if (info.menuItemId === 'open-navigation-flow-test') {
       const testPagePath = chrome.runtime.getURL('test-navigation-flow.html');
+      chrome.tabs.create({ url: testPagePath });
+    } else if (info.menuItemId === 'open-improvements-test') {
+      const testPagePath = chrome.runtime.getURL('test-improvements.html');
       chrome.tabs.create({ url: testPagePath });
     }
   });
@@ -92,9 +110,69 @@ async function scanUrl(url) {
     }
   } catch (error) {
     console.error('API error:', error.message);
+    
+    // Provide fallback analysis when API fails
+    const fallbackAnalysis = generateFallbackAnalysis(url);
     return {
+      ...fallbackAnalysis,
       error: true,
-      message: "Cannot retrieve scan results at this time. Please try again later."
+      message: "API unavailable. Showing basic analysis based on URL patterns.",
+      api_fallback: true
+    };
+  }
+}
+
+// Generate fallback analysis when API is unavailable
+function generateFallbackAnalysis(url) {
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.toLowerCase();
+    
+    // Basic risk assessment based on URL patterns
+    let riskScore = 3.0; // Default to medium risk
+    let verdict = 'suspicious';
+    
+    // Check for suspicious patterns
+    if (hostname.includes('phish') || hostname.includes('scam') || hostname.includes('malware')) {
+      riskScore = 9.0;
+      verdict = 'unsafe';
+    } else if (hostname.includes('secure') || hostname.includes('trusted') || hostname.includes('safe')) {
+      riskScore = 2.0;
+      verdict = 'safe';
+    } else if (hostname.includes('bit.ly') || hostname.includes('tinyurl') || hostname.includes('goo.gl')) {
+      riskScore = 6.0; // URL shorteners are suspicious
+      verdict = 'suspicious';
+    }
+    
+    // Check for HTTPS
+    if (urlObj.protocol === 'https:') {
+      riskScore = Math.max(1, riskScore - 1); // HTTPS reduces risk slightly
+    }
+    
+    return {
+      risk_score: riskScore,
+      verdict: verdict,
+      summary: `Basic analysis: ${verdict} (${riskScore}/10). ${urlObj.protocol === 'https:' ? 'HTTPS enabled.' : 'HTTP only - consider HTTPS.'}`,
+      script_analysis: {
+        total_scripts: 0,
+        external_scripts: 0
+      },
+      link_analysis: {
+        total_links: 0,
+        external_links: 0
+      },
+      page_text_findings: {
+        phishing_indicators: riskScore > 7,
+        suspicious_phrases: []
+      }
+    };
+  } catch (error) {
+    console.error('Error generating fallback analysis:', error);
+    return {
+      risk_score: 5.0,
+      verdict: 'suspicious',
+      summary: 'Unable to analyze URL. Proceed with caution.',
+      error: true
     };
   }
 }
@@ -138,7 +216,7 @@ async function sendMessageToActiveTab(message) {
   }
 }
 
-// Function to enable comprehensive blocking
+// Function to enable selective blocking
 async function enableBlocking() {
   try {
     await chrome.declarativeNetRequest.updateDynamicRules({
@@ -150,11 +228,11 @@ async function enableBlocking() {
         condition: {
           urlFilter: "*",
           resourceTypes: ["main_frame"],
-          excludedInitiatorDomains: ["chrome-extension"]
+          excludedInitiatorDomains: ["chrome-extension://*", "moz-extension://*", "about://*", "chrome://*", "edge://*"]
         }
       }]
     });
-    console.log('Blocking enabled for all navigation');
+    console.log('Selective blocking enabled - extension pages excluded');
   } catch (error) {
     console.error('Error enabling blocking:', error);
   }
@@ -175,9 +253,15 @@ async function allowUrlAndNavigate(url) {
       return false;
     }
 
-    // Create a specific allow rule for this domain with higher priority
+    // Extract domain and automatically add to trusted domains
     const urlObj = new URL(url);
     const domain = urlObj.hostname;
+    
+    // Automatically trust the entire domain when user approves a URL
+    if (!trustedDomains.has(domain)) {
+      trustedDomains.add(domain);
+      console.log('Automatically added domain to trusted list:', domain);
+    }
 
     console.log('Creating persistent allow rule for domain:', domain);
 
@@ -244,10 +328,68 @@ function shouldInterceptUrl(url) {
       return false;
     }
 
+    // Don't intercept trusted domains
+    if (trustedDomains.has(urlObj.hostname)) {
+      console.log('Skipping trusted domain:', urlObj.hostname);
+      return false;
+    }
+
+    // Check if this URL belongs to a domain that was already approved
+    if (isUrlFromApprovedDomain(urlObj)) {
+      console.log('Skipping URL from approved domain:', urlObj.hostname);
+      return false;
+    }
+
     // Only intercept http and https
     return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
   } catch (error) {
     console.error('Error checking URL:', error);
+    return false;
+  }
+}
+
+// Function to check if a URL belongs to an already approved domain
+function isUrlFromApprovedDomain(urlObj) {
+  try {
+    const hostname = urlObj.hostname.toLowerCase();
+    
+    // Check if the exact hostname is in allowed URLs
+    for (let allowedUrl of allowedUrls) {
+      try {
+        const allowedUrlObj = new URL(allowedUrl);
+        if (allowedUrlObj.hostname.toLowerCase() === hostname) {
+          return true;
+        }
+      } catch (e) {
+        // Skip invalid URLs in allowedUrls
+        continue;
+      }
+    }
+    
+    // Check if this is a subdomain or path of an approved domain
+    for (let allowedUrl of allowedUrls) {
+      try {
+        const allowedUrlObj = new URL(allowedUrl);
+        const allowedHostname = allowedUrlObj.hostname.toLowerCase();
+        
+        // Check if current hostname is a subdomain of approved domain
+        if (hostname === allowedHostname || hostname.endsWith('.' + allowedHostname)) {
+          return true;
+        }
+        
+        // Check if it's the same domain with different path
+        if (hostname === allowedHostname) {
+          return true;
+        }
+      } catch (e) {
+        // Skip invalid URLs in allowedUrls
+        continue;
+      }
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error checking approved domain:', error);
     return false;
   }
 }
@@ -273,6 +415,20 @@ async function openPopup() {
 async function proceedToUrl(url) {
   try {
     console.log('Proceeding to URL:', url);
+
+    // Check if this domain is already trusted
+    const urlObj = new URL(url);
+    const domain = urlObj.hostname;
+    
+    if (trustedDomains.has(domain)) {
+      console.log('Domain already trusted, proceeding directly:', domain);
+      // Just navigate without creating additional rules
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab) {
+        await chrome.tabs.update(tab.id, { url: url });
+        return true;
+      }
+    }
 
     // Check current rules before proceeding
     const rules = await chrome.declarativeNetRequest.getDynamicRules();
@@ -335,6 +491,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       cancelNavigation();
       sendResponse({ success: true });
       return true;
+    } else if (message.type === 'getTrustedDomains') {
+      sendResponse({ domains: Array.from(trustedDomains) });
+      return true;
     }
   } catch (error) {
     console.error('Error handling message:', error);
@@ -352,6 +511,12 @@ async function clearAllowRules() {
     console.error('Error clearing allow rules:', error);
   }
 }
+
+
+
+
+
+
 
 // Clear old cache entries periodically (every hour)
 setInterval(() => {
