@@ -70,9 +70,28 @@ try {
   console.error('Error setting up test helper:', error);
 }
 
+// Function to validate URL
+function isValidUrl(url) {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
+  } catch (error) {
+    return false;
+  }
+}
+
 // Function to scan a URL using the API
 async function scanUrl(url) {
   try {
+    // Validate URL first
+    if (!isValidUrl(url)) {
+      return {
+        error: true,
+        errorType: 'invalid_url',
+        message: 'The URL is not valid or uses an unsupported protocol.'
+      };
+    }
+
     const apiUrl = 'https://llm-2g3j.onrender.com/results';
     
     const response = await axios.get(apiUrl, {
@@ -482,9 +501,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true; // Required for async response
     } else if (message.type === 'proceedToUrl') {
       proceedToUrl(message.url).then((success) => {
-        sendResponse({ success: success });
+        if (success) {
+          sendResponse({ success: true });
+        } else {
+          sendResponse({
+            success: false,
+            error: 'Navigation failed. The website may be unreachable.',
+            errorType: 'navigation_failed'
+          });
+        }
       }).catch(error => {
-        sendResponse({ success: false, error: error.message });
+        console.error('Navigation error:', error);
+        sendResponse({
+          success: false,
+          error: error.message || 'Navigation failed unexpectedly.',
+          errorType: 'navigation_failed'
+        });
       });
       return true; // Required for async response
     } else if (message.type === 'cancelNavigation') {
