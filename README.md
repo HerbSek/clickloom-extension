@@ -24,6 +24,10 @@ A Chrome/Edge browser extension that enhances web safety by scanning links befor
    - The ClickLoom icon should appear in your browser toolbar
    - Right-click the icon and select "Open ClickLoom Test Page" to test the extension
 
+4. **Run the following APIs in your browser before running the extension**:
+   - [Scraper](https://clickloom-scraper.onrender.com/healthy)
+   - [RAG](https://llm-2g3j.onrender.com/healthy)
+
 ## Usage
 
 ### Basic Workflow
