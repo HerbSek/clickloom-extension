@@ -1,6 +1,17 @@
 // Import Axios from local file
 importScripts('axios.min.js');
 
+// Configuration constants
+const CONFIG = {
+  API_URL: 'https://llm-2g3j.onrender.com/results',
+  API_TIMEOUT: 60000,
+  RULE_ACTIVATION_DELAY: 300,
+  RULE_CLEANUP_DELAY: 10000,
+  CACHE_CLEANUP_INTERVAL: 3600000,
+  MAX_CACHE_SIZE: 200,
+  MAX_TRUSTED_DOMAINS: 500,
+};
+
 // Cache for storing scan results
 let scanCache = new Map();
 let allowedUrls = new Set();
@@ -10,65 +21,8 @@ let trustedDomains = new Set();
 chrome.storage.local.get(['trustedDomains'], (result) => {
   if (result.trustedDomains) {
     result.trustedDomains.forEach(domain => trustedDomains.add(domain));
-    console.log('Loaded trusted domains:', Array.from(trustedDomains));
   }
 });
-
-// Test helper functionality
-// Function to open the test page
-function openTestPage() {
-  const testPagePath = chrome.runtime.getURL('test.html');
-  chrome.tabs.create({ url: testPagePath });
-}
-
-// Add context menu items for easy testing
-try {
-  // Remove existing context menu items first
-  chrome.contextMenus.removeAll(() => {
-    // Create new context menu items
-    chrome.contextMenus.create({
-      id: 'open-test-page',
-      title: 'Open ClickLoom Test Page',
-      contexts: ['action'],
-    });
-
-    chrome.contextMenus.create({
-      id: 'open-webrequest-test',
-      title: 'Open Complete Blocking Test',
-      contexts: ['action'],
-    });
-
-    chrome.contextMenus.create({
-      id: 'open-navigation-flow-test',
-      title: 'Open Navigation Flow Test',
-      contexts: ['action'],
-    });
-
-    chrome.contextMenus.create({
-      id: 'open-improvements-test',
-      title: 'Open Improvements Test',
-      contexts: ['action'],
-    });
-  });
-
-  // Handle context menu clicks
-  chrome.contextMenus.onClicked.addListener((info, tab) => {
-    if (info.menuItemId === 'open-test-page') {
-      openTestPage();
-    } else if (info.menuItemId === 'open-webrequest-test') {
-      const testPagePath = chrome.runtime.getURL('test-webRequest.html');
-      chrome.tabs.create({ url: testPagePath });
-    } else if (info.menuItemId === 'open-navigation-flow-test') {
-      const testPagePath = chrome.runtime.getURL('test-navigation-flow.html');
-      chrome.tabs.create({ url: testPagePath });
-    } else if (info.menuItemId === 'open-improvements-test') {
-      const testPagePath = chrome.runtime.getURL('test-improvements.html');
-      chrome.tabs.create({ url: testPagePath });
-    }
-  });
-} catch (error) {
-  console.error('Error setting up test helper:', error);
-}
 
 // Function to validate URL
 function isValidUrl(url) {
@@ -83,7 +37,6 @@ function isValidUrl(url) {
 // Function to scan a URL using the API
 async function scanUrl(url) {
   try {
-    // Validate URL first
     if (!isValidUrl(url)) {
       return {
         error: true,
@@ -92,23 +45,16 @@ async function scanUrl(url) {
       };
     }
 
-    const apiUrl = 'https://llm-2g3j.onrender.com/results';
-    
-    const response = await axios.get(apiUrl, {
-      params: {
-        link: url
-      },
-      timeout: 120000, // 2 minute timeout
-      headers: {
-        'Accept': 'application/json'
-      }
+    const response = await axios.get(CONFIG.API_URL, {
+      params: { link: url },
+      timeout: CONFIG.API_TIMEOUT,
+      headers: { 'Accept': 'application/json' }
     });
-    
+
     if (response.status === 200 && response.data) {
-      // Ensure risk_score is present (some API responses might not have it)
+      // Ensure risk_score is present
       if (!response.data.risk_score && response.data.verdict) {
-        // Assign risk score based on verdict if not present
-        switch(response.data.verdict.toLowerCase()) {
+        switch (response.data.verdict.toLowerCase()) {
           case 'safe':
             response.data.risk_score = 1.0;
             break;
@@ -122,20 +68,16 @@ async function scanUrl(url) {
             response.data.risk_score = 3.0;
         }
       }
-      console.log('Scan results:', response.data);
       return response.data;
     } else {
       throw new Error(`Invalid API response: ${response.status}`);
     }
   } catch (error) {
-    console.error('API error:', error.message);
-    
-    // Provide fallback analysis when API fails
     const fallbackAnalysis = generateFallbackAnalysis(url);
     return {
       ...fallbackAnalysis,
       error: true,
-      message: "API unavailable. Showing basic analysis based on URL patterns.",
+      message: 'API unavailable. Showing basic analysis based on URL patterns.',
       api_fallback: true
     };
   }
@@ -146,47 +88,34 @@ function generateFallbackAnalysis(url) {
   try {
     const urlObj = new URL(url);
     const hostname = urlObj.hostname.toLowerCase();
-    
-    // Basic risk assessment based on URL patterns
-    let riskScore = 3.0; // Default to medium risk
+
+    let riskScore = 3.0;
     let verdict = 'suspicious';
-    
-    // Check for suspicious patterns
+
     if (hostname.includes('phish') || hostname.includes('scam') || hostname.includes('malware')) {
       riskScore = 9.0;
       verdict = 'unsafe';
-    } else if (hostname.includes('secure') || hostname.includes('trusted') || hostname.includes('safe')) {
-      riskScore = 2.0;
-      verdict = 'safe';
     } else if (hostname.includes('bit.ly') || hostname.includes('tinyurl') || hostname.includes('goo.gl')) {
-      riskScore = 6.0; // URL shorteners are suspicious
+      riskScore = 6.0;
       verdict = 'suspicious';
     }
-    
-    // Check for HTTPS
+
     if (urlObj.protocol === 'https:') {
-      riskScore = Math.max(1, riskScore - 1); // HTTPS reduces risk slightly
+      riskScore = Math.max(1, riskScore - 1);
     }
-    
+
     return {
       risk_score: riskScore,
       verdict: verdict,
       summary: `Basic analysis: ${verdict} (${riskScore}/10). ${urlObj.protocol === 'https:' ? 'HTTPS enabled.' : 'HTTP only - consider HTTPS.'}`,
-      script_analysis: {
-        total_scripts: 0,
-        external_scripts: 0
-      },
-      link_analysis: {
-        total_links: 0,
-        external_links: 0
-      },
+      script_analysis: { total_scripts: 0, external_scripts: 0 },
+      link_analysis: { total_links: 0, external_links: 0 },
       page_text_findings: {
         phishing_indicators: riskScore > 7,
         suspicious_phrases: []
       }
     };
   } catch (error) {
-    console.error('Error generating fallback analysis:', error);
     return {
       risk_score: 5.0,
       verdict: 'suspicious',
@@ -196,42 +125,35 @@ function generateFallbackAnalysis(url) {
   }
 }
 
-// Function to send message to content script with better error handling
+// Function to send message to content script with error handling
 async function sendMessageToActiveTab(message) {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab || !tab.id) {
-      return;
-    }
+    if (!tab || !tab.id) return;
 
     try {
       await chrome.tabs.sendMessage(tab.id, message);
     } catch (error) {
-      // If content script not ready, try to inject it
-      if (error.message.includes('Could not establish connection')) {
+      if (error.message && error.message.includes('Could not establish connection')) {
         try {
           await chrome.scripting.executeScript({
             target: { tabId: tab.id },
             files: ['content.js']
           });
-
-          // Wait a bit for injection, then try again
           setTimeout(async () => {
             try {
               await chrome.tabs.sendMessage(tab.id, message);
             } catch (retryError) {
-              console.log('Could not send message after injection:', retryError.message);
+              // Content script unavailable
             }
           }, 100);
         } catch (injectionError) {
-          console.log('Could not inject content script:', injectionError.message);
+          // Cannot inject into this page
         }
-      } else {
-        throw error;
       }
     }
   } catch (error) {
-    console.error('Error sending message to content script:', error);
+    // Tab not available
   }
 }
 
@@ -239,91 +161,74 @@ async function sendMessageToActiveTab(message) {
 async function enableBlocking() {
   try {
     await chrome.declarativeNetRequest.updateDynamicRules({
-      removeRuleIds: [1], // Remove existing block rule
+      removeRuleIds: [1],
       addRules: [{
         id: 1,
         priority: 1,
-        action: { type: "block" },
+        action: { type: 'block' },
         condition: {
-          urlFilter: "*",
-          resourceTypes: ["main_frame"],
-          excludedInitiatorDomains: ["chrome-extension://*", "moz-extension://*", "about://*", "chrome://*", "edge://*"]
+          urlFilter: '*',
+          resourceTypes: ['main_frame']
         }
       }]
     });
-    console.log('Selective blocking enabled - extension pages excluded');
   } catch (error) {
-    console.error('Error enabling blocking:', error);
+    // Blocking rule failed — extension may not function correctly
   }
 }
 
 // Function to allow a specific URL and navigate
 async function allowUrlAndNavigate(url) {
   try {
-    console.log('Allowing URL and navigating to:', url);
-
-    // Add to allowed URLs
     allowedUrls.add(url);
 
-    // Get the current active tab
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab) {
-      console.error('No active tab found for navigation');
-      return false;
-    }
+    if (!tab) return false;
 
-    // Extract domain and automatically add to trusted domains
     const urlObj = new URL(url);
     const domain = urlObj.hostname;
-    
-    // Automatically trust the entire domain when user approves a URL
-    if (!trustedDomains.has(domain)) {
-      trustedDomains.add(domain);
-      console.log('Automatically added domain to trusted list:', domain);
-    }
 
-    console.log('Creating persistent allow rule for domain:', domain);
+    // Automatically trust the entire domain
+    if (!trustedDomains.has(domain)) {
+      if (trustedDomains.size >= CONFIG.MAX_TRUSTED_DOMAINS) {
+        const oldest = trustedDomains.values().next().value;
+        trustedDomains.delete(oldest);
+      }
+      trustedDomains.add(domain);
+      chrome.storage.local.set({ trustedDomains: Array.from(trustedDomains) });
+    }
 
     // Create allow rule with higher priority than block rule
     await chrome.declarativeNetRequest.updateDynamicRules({
-      removeRuleIds: [2], // Remove any existing allow rule
+      removeRuleIds: [2],
       addRules: [{
         id: 2,
-        priority: 10, // Much higher priority than block rule (priority 1)
-        action: { type: "allow" },
+        priority: 10,
+        action: { type: 'allow' },
         condition: {
           urlFilter: `*://${domain}/*`,
-          resourceTypes: ["main_frame", "sub_frame", "stylesheet", "script", "image", "font", "object", "xmlhttprequest", "ping", "csp_report", "media", "websocket", "other"]
+          resourceTypes: ['main_frame', 'sub_frame', 'stylesheet', 'script', 'image', 'font', 'object', 'xmlhttprequest', 'ping', 'csp_report', 'media', 'websocket', 'other']
         }
       }]
     });
 
-    console.log('Allow rule created with high priority, navigating to:', url);
+    await new Promise(resolve => setTimeout(resolve, CONFIG.RULE_ACTIVATION_DELAY));
 
-    // Wait for rule to take effect
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    // Navigate to the URL
     await chrome.tabs.update(tab.id, { url: url });
 
-    console.log('Navigation completed to:', url);
-
-    // Keep the allow rule active for longer to ensure page loads completely
+    // Remove allow rule after page loads
     setTimeout(async () => {
       try {
-        console.log('Removing allow rule after page load');
         await chrome.declarativeNetRequest.updateDynamicRules({
           removeRuleIds: [2]
         });
-        console.log('Allow rule removed, blocking restored for future navigation');
       } catch (error) {
-        console.error('Error removing allow rule:', error);
+        // Rule cleanup failed
       }
-    }, 10000); // 10 seconds to allow full page load
+    }, CONFIG.RULE_CLEANUP_DELAY);
 
     return true;
   } catch (error) {
-    console.error('Error allowing URL and navigating:', error);
     return false;
   }
 }
@@ -331,38 +236,23 @@ async function allowUrlAndNavigate(url) {
 // Function to check if a URL should be intercepted
 function shouldInterceptUrl(url) {
   try {
-    // Don't intercept if URL is already allowed
-    if (allowedUrls.has(url)) {
-      return false;
-    }
+    if (allowedUrls.has(url)) return false;
 
-    // Don't intercept extension pages
     if (url.startsWith('chrome-extension://') || url.startsWith('moz-extension://')) {
       return false;
     }
 
-    // Don't intercept special protocols
     const urlObj = new URL(url);
-    if (['chrome:', 'chrome-extension:', 'moz-extension:', 'about:', 'data:', 'blob:', 'javascript:', 'file:'].includes(urlObj.protocol)) {
+    if (['chrome:', 'chrome-extension:', 'moz-extension:', 'about:', 'data:', 'blob:', 'javascript:', 'file:', 'edge:'].includes(urlObj.protocol)) {
       return false;
     }
 
-    // Don't intercept trusted domains
-    if (trustedDomains.has(urlObj.hostname)) {
-      console.log('Skipping trusted domain:', urlObj.hostname);
-      return false;
-    }
+    if (trustedDomains.has(urlObj.hostname)) return false;
 
-    // Check if this URL belongs to a domain that was already approved
-    if (isUrlFromApprovedDomain(urlObj)) {
-      console.log('Skipping URL from approved domain:', urlObj.hostname);
-      return false;
-    }
+    if (isUrlFromApprovedDomain(urlObj)) return false;
 
-    // Only intercept http and https
     return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
   } catch (error) {
-    console.error('Error checking URL:', error);
     return false;
   }
 }
@@ -371,44 +261,21 @@ function shouldInterceptUrl(url) {
 function isUrlFromApprovedDomain(urlObj) {
   try {
     const hostname = urlObj.hostname.toLowerCase();
-    
-    // Check if the exact hostname is in allowed URLs
-    for (let allowedUrl of allowedUrls) {
-      try {
-        const allowedUrlObj = new URL(allowedUrl);
-        if (allowedUrlObj.hostname.toLowerCase() === hostname) {
-          return true;
-        }
-      } catch (e) {
-        // Skip invalid URLs in allowedUrls
-        continue;
-      }
-    }
-    
-    // Check if this is a subdomain or path of an approved domain
-    for (let allowedUrl of allowedUrls) {
+
+    for (const allowedUrl of allowedUrls) {
       try {
         const allowedUrlObj = new URL(allowedUrl);
         const allowedHostname = allowedUrlObj.hostname.toLowerCase();
-        
-        // Check if current hostname is a subdomain of approved domain
         if (hostname === allowedHostname || hostname.endsWith('.' + allowedHostname)) {
           return true;
         }
-        
-        // Check if it's the same domain with different path
-        if (hostname === allowedHostname) {
-          return true;
-        }
       } catch (e) {
-        // Skip invalid URLs in allowedUrls
         continue;
       }
     }
-    
+
     return false;
   } catch (error) {
-    console.error('Error checking approved domain:', error);
     return false;
   }
 }
@@ -416,52 +283,19 @@ function isUrlFromApprovedDomain(urlObj) {
 // Function to open the popup
 async function openPopup() {
   try {
-    // Get the current active tab
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab) {
-      console.error('No active tab found');
-      return;
-    }
-
-    // Open the popup
+    if (!tab) return;
     await chrome.action.openPopup();
   } catch (error) {
-    console.error('Error opening popup:', error);
+    // Popup may already be open or cannot be opened programmatically
   }
 }
 
-// Simple function to proceed to URL (used by popup)
+// Proceed to URL (used by popup)
 async function proceedToUrl(url) {
   try {
-    console.log('Proceeding to URL:', url);
-
-    // Check if this domain is already trusted
-    const urlObj = new URL(url);
-    const domain = urlObj.hostname;
-    
-    if (trustedDomains.has(domain)) {
-      console.log('Domain already trusted, proceeding directly:', domain);
-      // Just navigate without creating additional rules
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tab) {
-        await chrome.tabs.update(tab.id, { url: url });
-        return true;
-      }
-    }
-
-    // Check current rules before proceeding
-    const rules = await chrome.declarativeNetRequest.getDynamicRules();
-    console.log('Current dynamic rules before navigation:', rules);
-
-    const success = await allowUrlAndNavigate(url);
-
-    // Check rules after creating allow rule
-    const rulesAfter = await chrome.declarativeNetRequest.getDynamicRules();
-    console.log('Dynamic rules after creating allow rule:', rulesAfter);
-
-    return success;
+    return await allowUrlAndNavigate(url);
   } catch (error) {
-    console.error('Error proceeding to URL:', error);
     return false;
   }
 }
@@ -469,12 +303,9 @@ async function proceedToUrl(url) {
 // Function to cancel navigation
 async function cancelNavigation() {
   try {
-    // Send message to content script to cancel
-    await sendMessageToActiveTab({
-      type: 'cancelNavigation'
-    });
+    await sendMessageToActiveTab({ type: 'cancelNavigation' });
   } catch (error) {
-    console.error('Error cancelling navigation:', error);
+    // Cancel failed
   }
 }
 
@@ -485,20 +316,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       openPopup();
       return true;
     } else if (message.type === 'scanUrl') {
-      // Check cache first
       if (scanCache.has(message.url)) {
         sendResponse(scanCache.get(message.url));
         return true;
       }
 
-      // Scan URL and respond
       scanUrl(message.url).then(data => {
-        // Cache the results
+        if (scanCache.size >= CONFIG.MAX_CACHE_SIZE) {
+          const oldest = scanCache.keys().next().value;
+          scanCache.delete(oldest);
+        }
         scanCache.set(message.url, data);
         sendResponse(data);
       });
 
-      return true; // Required for async response
+      return true;
     } else if (message.type === 'proceedToUrl') {
       proceedToUrl(message.url).then((success) => {
         if (success) {
@@ -510,15 +342,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             errorType: 'navigation_failed'
           });
         }
-      }).catch(error => {
-        console.error('Navigation error:', error);
+      }).catch(() => {
         sendResponse({
           success: false,
-          error: error.message || 'Navigation failed unexpectedly.',
+          error: 'Navigation failed unexpectedly.',
           errorType: 'navigation_failed'
         });
       });
-      return true; // Required for async response
+      return true;
     } else if (message.type === 'cancelNavigation') {
       cancelNavigation();
       sendResponse({ success: true });
@@ -528,7 +359,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
     }
   } catch (error) {
-    console.error('Error handling message:', error);
+    sendResponse({ error: 'Internal error' });
   }
 });
 
@@ -536,54 +367,71 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 async function clearAllowRules() {
   try {
     await chrome.declarativeNetRequest.updateDynamicRules({
-      removeRuleIds: [2, 3, 4, 5] // Remove any allow rules
+      removeRuleIds: [2, 3, 4, 5]
     });
-    console.log('All allow rules cleared');
   } catch (error) {
-    console.error('Error clearing allow rules:', error);
+    // Rule cleanup failed
   }
 }
 
-
-
-
-
-
-
-// Clear old cache entries periodically (every hour)
+// Clear old cache entries periodically
 setInterval(() => {
   scanCache.clear();
   allowedUrls.clear();
-  clearAllowRules(); // Clear any lingering allow rules
-  enableBlocking(); // Re-enable blocking after clearing cache
-}, 3600000);
+  clearAllowRules();
+  enableBlocking();
+}, CONFIG.CACHE_CLEANUP_INTERVAL);
 
 // Enable blocking when the service worker starts
 enableBlocking();
 
 // Listen for blocked navigation attempts
 chrome.webNavigation.onErrorOccurred.addListener(async (details) => {
-  // Only handle main frame navigation errors
   if (details.frameId !== 0) return;
-
-  // Check if this is a blocked request (error: net::ERR_BLOCKED_BY_CLIENT)
   if (details.error !== 'net::ERR_BLOCKED_BY_CLIENT') return;
 
-  // Check if this URL should be intercepted
+  // If this is a trusted/allowed domain, silently let it through
   if (!shouldInterceptUrl(details.url)) {
+    try {
+      const urlObj = new URL(details.url);
+      const domain = urlObj.hostname;
+
+      // Create temporary allow rule and re-navigate
+      await chrome.declarativeNetRequest.updateDynamicRules({
+        removeRuleIds: [2],
+        addRules: [{
+          id: 2,
+          priority: 10,
+          action: { type: 'allow' },
+          condition: {
+            urlFilter: `*://${domain}/*`,
+            resourceTypes: ['main_frame', 'sub_frame', 'stylesheet', 'script', 'image', 'font', 'object', 'xmlhttprequest', 'ping', 'csp_report', 'media', 'websocket', 'other']
+          }
+        }]
+      });
+
+      await new Promise(resolve => setTimeout(resolve, CONFIG.RULE_ACTIVATION_DELAY));
+      await chrome.tabs.update(details.tabId, { url: details.url });
+
+      setTimeout(async () => {
+        try {
+          await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: [2] });
+        } catch (e) {
+          // Cleanup failed
+        }
+      }, CONFIG.RULE_CLEANUP_DELAY);
+    } catch (error) {
+      // Auto-allow failed
+    }
     return;
   }
 
-  console.log('Blocked navigation detected:', details.url);
+  await chrome.storage.local.set({ clickedUrl: details.url });
 
-  // Store the URL for the popup
-  await chrome.storage.local.set({ 'clickedUrl': details.url });
-
-  // Show overlay and open popup
   try {
     await chrome.tabs.sendMessage(details.tabId, { type: 'showOverlay' });
   } catch (error) {
-    console.log('Could not send overlay message:', error.message);
+    // Content script not available on this tab
   }
 
   openPopup();
@@ -591,23 +439,10 @@ chrome.webNavigation.onErrorOccurred.addListener(async (details) => {
 
 // Also listen for beforeNavigate as backup
 chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
-  // Only handle main frame navigation
   if (details.frameId !== 0) return;
+  if (!shouldInterceptUrl(details.url)) return;
+  if (allowedUrls.has(details.url)) return;
 
-  // Check if this URL should be intercepted
-  if (!shouldInterceptUrl(details.url)) {
-    return;
-  }
-
-  // Only intercept if URL is not already allowed
-  if (allowedUrls.has(details.url)) {
-    return;
-  }
-
-  console.log('WebNavigation intercepting:', details.url);
-
-  // Store the URL for the popup
-  await chrome.storage.local.set({ 'clickedUrl': details.url });
-
+  await chrome.storage.local.set({ clickedUrl: details.url });
   openPopup();
 });

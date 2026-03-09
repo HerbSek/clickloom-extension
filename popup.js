@@ -1,4 +1,3 @@
-// Initialize DOM Elements and Event Listeners after the document is loaded
 document.addEventListener('DOMContentLoaded', () => {
   // DOM Elements
   const initialScreen = document.querySelector('.initial-screen');
@@ -16,17 +15,23 @@ document.addEventListener('DOMContentLoaded', () => {
   const externalLinks = document.getElementById('externalLinks');
   const recommendations = document.getElementById('recommendations');
 
-  // Button Elements
   const startScanButton = document.getElementById('startScan');
   const cancelScanButton = document.getElementById('cancelScan');
   const proceedButton = document.getElementById('proceedToSite');
   const goBackButton = document.getElementById('goBack');
-  
-
 
   let currentUrl = '';
 
-  // Show specific screen
+  // Helper to create safe DOM info lines (avoids innerHTML XSS)
+  function createInfoLine(label, value) {
+    const line = document.createElement('div');
+    const strong = document.createElement('strong');
+    strong.textContent = label + ': ';
+    line.appendChild(strong);
+    line.appendChild(document.createTextNode(value));
+    return line;
+  }
+
   function showScreen(screen) {
     initialScreen.classList.remove('active');
     loadingScreen.style.display = 'none';
@@ -41,7 +46,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Update verdict UI based on risk score
   function updateVerdict(score) {
     let verdict, icon;
     if (score <= 3) {
@@ -62,128 +66,109 @@ document.addEventListener('DOMContentLoaded', () => {
     scoreBar.className = `score-fill ${verdict}`;
   }
 
-  // Display scan results
   function displayResults(data) {
-    console.log('Displaying results:', data); // Debug log
-
-    // Check if there's an error
-    if (data.error) {
+    if (data.error && !data.api_fallback) {
       const errorType = data.errorType || 'api_error';
       showError(errorType, data.message);
       return;
     }
 
-    // Ensure we have a risk score
     const riskScore = data.risk_score || 3.0;
-    console.log('Risk score:', riskScore); // Debug log
     updateVerdict(riskScore);
-    
-    // Basic analysis with fallbacks
+
     totalScripts.textContent = data.script_analysis?.total_scripts || 0;
     externalScripts.textContent = data.script_analysis?.external_scripts || 0;
     totalLinks.textContent = data.link_analysis?.total_links || 0;
     externalLinks.textContent = data.link_analysis?.external_links || 0;
-    
+
     // Summary
     const summaryElement = document.getElementById('summary');
-    if (summaryElement && data.summary) {
-      summaryElement.textContent = data.summary;
-    } else if (summaryElement) {
-      summaryElement.textContent = 'No detailed summary available.';
+    if (summaryElement) {
+      summaryElement.textContent = data.summary || 'No detailed summary available.';
     }
-    
+
     // Text findings
     const textFindingsElement = document.getElementById('textFindings');
     if (textFindingsElement && data.page_text_findings) {
       const findings = data.page_text_findings;
       let findingsText = '';
-      
+
       if (findings.phishing_indicators) {
-        findingsText += '⚠️ Phishing indicators detected\n';
+        findingsText += 'Phishing indicators detected\n';
       }
-      
+
       if (findings.suspicious_phrases && findings.suspicious_phrases.length > 0) {
-        findingsText += `🚨 Suspicious phrases found: ${findings.suspicious_phrases.length}\n`;
+        findingsText += `Suspicious phrases found: ${findings.suspicious_phrases.length}\n`;
         findings.suspicious_phrases.forEach(phrase => {
-          findingsText += `• "${phrase}"\n`;
+          findingsText += `  - "${phrase}"\n`;
         });
       }
-      
+
       if (!findingsText) {
-        findingsText = '✅ No suspicious text content detected';
+        findingsText = 'No suspicious text content detected';
       }
-      
+
       textFindingsElement.textContent = findingsText;
     } else if (textFindingsElement) {
       textFindingsElement.textContent = 'Text analysis not available.';
     }
-    
+
     // Script details
     const scriptDetailsElement = document.getElementById('scriptDetails');
     if (scriptDetailsElement && data.script_analysis) {
       const scriptAnalysis = data.script_analysis;
-      let scriptText = '';
-      
-      scriptText += `📊 Total scripts: ${scriptAnalysis.total_scripts || 0}\n`;
-      scriptText += `🌐 External scripts: ${scriptAnalysis.external_scripts || 0}\n`;
-      
+      let scriptText = `Total scripts: ${scriptAnalysis.total_scripts || 0}\nExternal scripts: ${scriptAnalysis.external_scripts || 0}\n`;
+
       if (scriptAnalysis.minified_or_encoded) {
-        scriptText += '🔒 Scripts are minified or encoded\n';
+        scriptText += 'Scripts are minified or encoded\n';
       }
-      
+
       if (scriptAnalysis.suspicious_domains && scriptAnalysis.suspicious_domains.length > 0) {
-        scriptText += `⚠️ Suspicious domains: ${scriptAnalysis.suspicious_domains.length}\n`;
+        scriptText += `Suspicious domains: ${scriptAnalysis.suspicious_domains.length}\n`;
         scriptAnalysis.suspicious_domains.forEach(domain => {
-          scriptText += `• ${domain}\n`;
+          scriptText += `  - ${domain}\n`;
         });
       }
-      
+
       scriptDetailsElement.textContent = scriptText;
     } else if (scriptDetailsElement) {
       scriptDetailsElement.textContent = 'Script analysis not available.';
     }
-    
+
     // Link details
     const linkDetailsElement = document.getElementById('linkDetails');
     if (linkDetailsElement && data.link_analysis) {
       const linkAnalysis = data.link_analysis;
-      let linkText = '';
-      
-      linkText += `🔗 Total links: ${linkAnalysis.total_links || 0}\n`;
-      linkText += `🌐 External links: ${linkAnalysis.external_links || 0}\n`;
-      
+      let linkText = `Total links: ${linkAnalysis.total_links || 0}\nExternal links: ${linkAnalysis.external_links || 0}\n`;
+
       if (linkAnalysis.redirect_services_used && linkAnalysis.redirect_services_used.length > 0) {
-        linkText += `🔄 Redirect services used: ${linkAnalysis.redirect_services_used.length}\n`;
+        linkText += `Redirect services used: ${linkAnalysis.redirect_services_used.length}\n`;
         linkAnalysis.redirect_services_used.forEach(service => {
-          linkText += `• ${service}\n`;
+          linkText += `  - ${service}\n`;
         });
       }
-      
+
       if (linkAnalysis.phishing_like_links && linkAnalysis.phishing_like_links.length > 0) {
-        linkText += `🚨 Phishing-like links: ${linkAnalysis.phishing_like_links.length}\n`;
+        linkText += `Phishing-like links: ${linkAnalysis.phishing_like_links.length}\n`;
         linkAnalysis.phishing_like_links.forEach(link => {
-          linkText += `• ${link}\n`;
+          linkText += `  - ${link}\n`;
         });
       }
-      
-      if (!linkText.includes('🚨') && !linkText.includes('🔄')) {
-        linkText += '✅ No suspicious link patterns detected';
+
+      if (!linkAnalysis.redirect_services_used?.length && !linkAnalysis.phishing_like_links?.length) {
+        linkText += 'No suspicious link patterns detected';
       }
-      
+
       linkDetailsElement.textContent = linkText;
     } else if (linkDetailsElement) {
       linkDetailsElement.textContent = 'Link analysis not available.';
     }
-    
+
     // Recommendations
-    if (data.recommendations) {
-      recommendations.textContent = data.recommendations;
-    } else {
-      recommendations.textContent = 'No specific recommendations available.';
-    }
-    
+    recommendations.textContent = data.recommendations || 'No specific recommendations available.';
+
     showScreen('results');
-    
+
     // Update domain trust status after scan
     setTimeout(async () => {
       if (currentUrl) {
@@ -192,14 +177,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 500);
   }
 
-  // Enhanced error handling with different error types
   function showError(errorType, customMessage = null) {
-    // Hide loading screen
     loadingScreen.style.display = 'none';
 
     let icon, title, message, showRetry = true;
 
-    switch(errorType) {
+    switch (errorType) {
       case 'api_timeout':
         icon = '⏱️';
         title = 'Scan Timeout';
@@ -233,250 +216,173 @@ document.addEventListener('DOMContentLoaded', () => {
         message = customMessage || 'An unexpected error occurred. Please try again.';
     }
 
-    // Create error message
+    // Build error UI safely
     const errorDiv = document.createElement('div');
     errorDiv.className = 'error-message';
-    errorDiv.innerHTML = `
-      <div style="text-align: center; padding: 20px;">
-        <div style="font-size: 32px; margin-bottom: 15px;">${icon}</div>
-        <div style="color: #e74c3c; font-size: 18px; font-weight: bold; margin-bottom: 10px;">${title}</div>
-        <div style="color: #555; font-size: 14px; margin-bottom: 20px; line-height: 1.4;">${message}</div>
-        <div style="display: flex; gap: 10px; justify-content: center;">
-          ${showRetry ? `
-            <button id="retryScan" style="
-              background: #3498db;
-              color: white;
-              border: none;
-              padding: 12px 20px;
-              border-radius: 5px;
-              cursor: pointer;
-              font-size: 14px;
-              font-weight: bold;
-            ">🔄 Try Scan Again</button>
-          ` : ''}
-          <button id="proceedAnyway" style="
-            background: #27ae60;
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-          ">➡️ Proceed to Site</button>
-          <button id="cancelNavigation" style="
-            background: #95a5a6;
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-          ">❌ Cancel</button>
-        </div>
-      </div>
-    `;
 
-    // Clear the initial screen and add error message
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'text-align: center; padding: 20px;';
+
+    const iconEl = document.createElement('div');
+    iconEl.style.cssText = 'font-size: 32px; margin-bottom: 15px;';
+    iconEl.textContent = icon;
+    wrapper.appendChild(iconEl);
+
+    const titleEl = document.createElement('div');
+    titleEl.style.cssText = 'color: #e74c3c; font-size: 18px; font-weight: bold; margin-bottom: 10px;';
+    titleEl.textContent = title;
+    wrapper.appendChild(titleEl);
+
+    const msgEl = document.createElement('div');
+    msgEl.style.cssText = 'color: #555; font-size: 14px; margin-bottom: 20px; line-height: 1.4;';
+    msgEl.textContent = message;
+    wrapper.appendChild(msgEl);
+
+    const btnGroup = document.createElement('div');
+    btnGroup.style.cssText = 'display: flex; gap: 10px; justify-content: center;';
+
+    const btnStyle = 'color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: bold;';
+
+    if (showRetry) {
+      const retryBtn = document.createElement('button');
+      retryBtn.textContent = 'Try Scan Again';
+      retryBtn.style.cssText = `background: #3498db; ${btnStyle}`;
+      retryBtn.addEventListener('click', () => {
+        showScreen('loading');
+        chrome.runtime.sendMessage({ type: 'scanUrl', url: currentUrl })
+          .then(response => displayResults(response))
+          .catch(() => showError('api_error', 'Scan failed again. Please check your connection.'));
+      });
+      btnGroup.appendChild(retryBtn);
+    }
+
+    const proceedBtn = document.createElement('button');
+    proceedBtn.textContent = 'Proceed to Site';
+    proceedBtn.style.cssText = `background: #27ae60; ${btnStyle}`;
+    proceedBtn.addEventListener('click', () => proceedToUrl(currentUrl));
+    btnGroup.appendChild(proceedBtn);
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.style.cssText = `background: #95a5a6; ${btnStyle}`;
+    cancelBtn.addEventListener('click', () => cancelNavigation());
+    btnGroup.appendChild(cancelBtn);
+
+    wrapper.appendChild(btnGroup);
+    errorDiv.appendChild(wrapper);
+
     initialScreen.innerHTML = '';
     initialScreen.appendChild(errorDiv);
     initialScreen.classList.add('active');
-
-    // Add event listeners for error buttons
-    if (showRetry) {
-      document.getElementById('retryScan').addEventListener('click', () => {
-        console.log('Retrying scan for:', currentUrl);
-        showScreen('loading');
-        // Retry the scan
-        chrome.runtime.sendMessage({
-          type: 'scanUrl',
-          url: currentUrl
-        }).then(response => {
-          displayResults(response);
-        }).catch(error => {
-          console.error('Retry scan error:', error);
-          showError('api_error', 'Scan failed again. Please check your connection.');
-        });
-      });
-    }
-
-    document.getElementById('proceedAnyway').addEventListener('click', () => {
-      console.log('Proceeding anyway to:', currentUrl);
-      proceedToUrl(currentUrl);
-    });
-
-    document.getElementById('cancelNavigation').addEventListener('click', () => {
-      console.log('Cancelling navigation');
-      cancelNavigation();
-    });
   }
 
-  // Navigate to URL (proceed directly or after scan)
   async function proceedToUrl(url) {
     try {
-      console.log('Popup: Proceeding to URL:', url);
-
       const response = await chrome.runtime.sendMessage({
         type: 'proceedToUrl',
         url: url
       });
 
-      console.log('Popup: Proceed response:', response);
-
       if (response.success) {
-        console.log('Navigation successful, closing popup');
         window.close();
       } else {
-        console.error('Navigation failed:', response.error);
-        // Show navigation error to user
         const errorType = response.errorType || 'navigation_failed';
         showError(errorType, response.error);
       }
     } catch (error) {
-      console.error('Error proceeding to URL:', error);
+      showError('navigation_failed', 'Failed to communicate with extension.');
     }
   }
 
-  // Cancel navigation
   async function cancelNavigation() {
     try {
-      console.log('Popup: Cancelling navigation');
-
-      await chrome.runtime.sendMessage({
-        type: 'cancelNavigation'
-      });
-
+      await chrome.runtime.sendMessage({ type: 'cancelNavigation' });
       window.close();
     } catch (error) {
-      console.error('Error cancelling navigation:', error);
+      window.close();
     }
   }
 
-  // Initialize popup
   async function initPopup() {
     try {
       const { clickedUrl } = await chrome.storage.local.get('clickedUrl');
-      console.log('Popup initialized with URL:', clickedUrl);
       if (clickedUrl) {
         currentUrl = clickedUrl;
         urlToScan.textContent = clickedUrl;
         scannedUrl.textContent = clickedUrl;
-        console.log('Current URL set to:', currentUrl);
-        
-        // Check and display domain trust status
         await checkDomainTrustStatus(clickedUrl);
-      } else {
-        console.error('No clickedUrl found in storage!');
       }
     } catch (error) {
-      console.error('Error initializing popup:', error);
+      // Popup initialization failed
     }
   }
 
-  // Check if the current URL's domain is already trusted
   async function checkDomainTrustStatus(url) {
     try {
       const urlObj = new URL(url);
       const domain = urlObj.hostname;
       const fullUrl = urlObj.href;
-      
-      console.log('Checking domain trust status for:', domain);
-      
-      const response = await chrome.runtime.sendMessage({
-        type: 'getTrustedDomains'
-      });
-      
+
+      const response = await chrome.runtime.sendMessage({ type: 'getTrustedDomains' });
+
       if (response && response.domains) {
-        console.log('Current trusted domains:', response.domains);
         const isTrusted = response.domains.includes(domain);
-        displayDomainStatus(isTrusted, domain, fullUrl, response.domains);
+        displayDomainStatus(isTrusted, domain, fullUrl);
       } else {
-        console.log('No trusted domains found');
-        displayDomainStatus(false, domain, fullUrl, []);
+        displayDomainStatus(false, domain, fullUrl);
       }
     } catch (error) {
-      console.error('Error checking domain trust status:', error);
-      // Fallback to showing as new domain
       try {
         const urlObj = new URL(url);
-        const domain = urlObj.hostname;
-        displayDomainStatus(false, domain, url, []);
+        displayDomainStatus(false, urlObj.hostname, url);
       } catch (e) {
-        console.error('Error parsing URL:', e);
+        // URL parsing failed
       }
     }
   }
 
-  // Display domain trust status with detailed information
-  function displayDomainStatus(isTrusted, domain, fullUrl, trustedDomains) {
+  function displayDomainStatus(isTrusted, domain, fullUrl) {
     const domainStatus = document.getElementById('domainStatus');
     const statusTrusted = document.getElementById('statusTrusted');
     const statusNew = document.getElementById('statusNew');
     const domainInfoTrusted = document.getElementById('domainInfoTrusted');
     const domainInfoNew = document.getElementById('domainInfoNew');
-    
+
     domainStatus.style.display = 'block';
-    
+
     if (isTrusted) {
       statusTrusted.style.display = 'block';
       statusNew.style.display = 'none';
-      
-      // Show trusted domain info
-      domainInfoTrusted.innerHTML = `
-        <strong>Domain:</strong> ${domain}<br>
-        <strong>URL:</strong> ${fullUrl}<br>
-        <strong>Trust Level:</strong> Full Trust (Domain + All Sublinks)<br>
-        <strong>Status:</strong> ✅ Approved and Trusted
-      `;
+
+      domainInfoTrusted.textContent = '';
+      domainInfoTrusted.appendChild(createInfoLine('Domain', domain));
+      domainInfoTrusted.appendChild(createInfoLine('URL', fullUrl));
+      domainInfoTrusted.appendChild(createInfoLine('Trust Level', 'Full Trust (Domain + All Sublinks)'));
+      domainInfoTrusted.appendChild(createInfoLine('Status', 'Approved and Trusted'));
     } else {
       statusTrusted.style.display = 'none';
       statusNew.style.display = 'block';
-      
-      // Show new domain info
-      domainInfoNew.innerHTML = `
-        <strong>Domain:</strong> ${domain}<br>
-        <strong>URL:</strong> ${fullUrl}<br>
-        <strong>Trust Level:</strong> Not Yet Trusted<br>
-        <strong>Status:</strong> ⚠️ Requires Approval<br>
-        <strong>Note:</strong> After approval, all sublinks will be automatically trusted
-      `;
+
+      domainInfoNew.textContent = '';
+      domainInfoNew.appendChild(createInfoLine('Domain', domain));
+      domainInfoNew.appendChild(createInfoLine('URL', fullUrl));
+      domainInfoNew.appendChild(createInfoLine('Trust Level', 'Not Yet Trusted'));
+      domainInfoNew.appendChild(createInfoLine('Status', 'Requires Approval'));
+      domainInfoNew.appendChild(createInfoLine('Note', 'After approval, all sublinks will be automatically trusted'));
       domainInfoNew.className = 'domain-info new-domain';
     }
-    
-    // Update debug information
-    updateDebugInfo(domain, isTrusted, trustedDomains);
-    
-    console.log(`Domain ${domain} is ${isTrusted ? 'trusted' : 'not trusted'}`);
   }
-
-  // Update debug information
-  function updateDebugInfo(domain, isTrusted, trustedDomains) {
-    const debugSection = document.getElementById('debugSection');
-    const debugContent = document.getElementById('debugContent');
-    
-    debugSection.style.display = 'block';
-    
-    const timestamp = new Date().toLocaleTimeString();
-    const debugInfo = `
-      <strong>Timestamp:</strong> ${timestamp}<br>
-      <strong>Current Domain:</strong> ${domain}<br>
-      <strong>Trust Status:</strong> ${isTrusted ? '✅ TRUSTED' : '❌ NOT TRUSTED'}<br>
-      <strong>Total Trusted Domains:</strong> ${trustedDomains.length}<br>
-      <strong>Trusted Domains List:</strong><br>
-      ${trustedDomains.length > 0 ? trustedDomains.map(d => `  • ${d}`).join('<br>') : '  (none)'}<br>
-      <strong>Note:</strong> This updates in real-time as you approve domains
-    `;
-    
-    debugContent.innerHTML = debugInfo;
-  }
-
-
 
   // Event Listeners
   startScanButton.addEventListener('click', async () => {
-    console.log('Starting scan for:', currentUrl);
     showScreen('loading');
+
+    const slowTimer = setTimeout(() => {
+      const loadingEl = document.querySelector('.loading .small-text');
+      if (loadingEl) {
+        loadingEl.textContent = 'Taking longer than expected — the server may be starting up...';
+      }
+    }, 15000);
 
     try {
       const response = await chrome.runtime.sendMessage({
@@ -484,10 +390,10 @@ document.addEventListener('DOMContentLoaded', () => {
         url: currentUrl
       });
 
+      clearTimeout(slowTimer);
       displayResults(response);
     } catch (error) {
-      console.error('Error during scan:', error);
-      // Handle different types of scan errors
+      clearTimeout(slowTimer);
       if (error.message && error.message.includes('Extension context invalidated')) {
         showError('api_error', 'Extension was reloaded. Please close this popup and try again.');
       } else if (error.message && error.message.includes('Could not establish connection')) {
@@ -498,43 +404,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Refresh domain status button
-  document.getElementById('refreshDomainStatus').addEventListener('click', async () => {
-    console.log('Refreshing domain status for:', currentUrl);
-    if (currentUrl) {
-      await checkDomainTrustStatus(currentUrl);
-    }
-  });
-
-  // Toggle debug information
-  document.getElementById('toggleDebug').addEventListener('click', () => {
-    const debugContent = document.getElementById('debugContent');
-    const toggleBtn = document.getElementById('toggleDebug');
-    
-    if (debugContent.style.display === 'none') {
-      debugContent.style.display = 'block';
-      toggleBtn.textContent = 'Hide Debug';
-    } else {
-      debugContent.style.display = 'none';
-      toggleBtn.textContent = 'Show Debug';
-    }
-  });
-
-  cancelScanButton.addEventListener('click', async () => {
-    console.log('Cancel scan button clicked, proceeding directly to:', currentUrl);
-    if (!currentUrl) {
-      console.error('No current URL set!');
-      return;
-    }
+  cancelScanButton.addEventListener('click', () => {
+    if (!currentUrl) return;
     proceedToUrl(currentUrl);
   });
 
-  proceedButton.addEventListener('click', async () => {
-    console.log('Proceed button clicked after scan, going to:', currentUrl);
-    if (!currentUrl) {
-      console.error('No current URL set!');
-      return;
-    }
+  proceedButton.addEventListener('click', () => {
+    if (!currentUrl) return;
     proceedToUrl(currentUrl);
   });
 
@@ -542,8 +418,5 @@ document.addEventListener('DOMContentLoaded', () => {
     cancelNavigation();
   });
 
-
-
-  // Initialize popup
   initPopup();
-}); 
+});

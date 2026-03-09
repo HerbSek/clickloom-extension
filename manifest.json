@@ -2,15 +2,14 @@
   "manifest_version": 3,
   "name": "ClickLoom - Safe Link Scanner",
   "version": "1.0.0",
-  "description": "Enhances web safety by scanning links before visiting them",
+  "description": "Scans links for security threats before you visit them. AI-powered analysis detects phishing, malware, and suspicious sites.",
   "permissions": [
     "storage",
     "activeTab",
     "scripting",
     "tabs",
     "webNavigation",
-    "declarativeNetRequest",
-    "contextMenus"
+    "declarativeNetRequest"
   ],
   "host_permissions": [
     "https://llm-2g3j.onrender.com/*",
@@ -35,7 +34,6 @@
       "all_frames": true
     }
   ],
-
   "declarative_net_request": {
     "rule_resources": [
       {
@@ -49,11 +47,5 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  },
-  "web_accessible_resources": [
-    {
-      "resources": ["test.html", "test-webRequest.html", "test-navigation-flow.html", "test-improvements.html", "axios.min.js"],
-      "matches": ["<all_urls>"]
-    }
-  ]
-} 
+  }
+}

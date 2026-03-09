@@ -1,14 +1,1 @@
-[
-  {
-    "id": 1,
-    "priority": 1,
-    "action": {
-      "type": "block"
-    },
-    "condition": {
-      "urlFilter": "*",
-      "resourceTypes": ["main_frame"],
-      "excludedInitiatorDomains": ["chrome-extension://*", "moz-extension://*", "about://*", "chrome://*", "edge://*"]
-    }
-  }
-]
+[]
